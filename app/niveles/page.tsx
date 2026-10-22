@@ -10,17 +10,19 @@ export const metadata = { title: "Niveles" };
 
 export default function NivelesPage() {
   return (
-    <div>
-      <h1 className="max-w-3xl text-3xl font-extrabold leading-tight md:text-4xl">
-        ¿Qué aventura quieres leer hoy?
-      </h1>
-      <p className="mt-3 max-w-2xl text-lg leading-8 text-muted">
-        Elige cómo quieres empezar. Dentro del cuento, Ñawi ajusta las preguntas según cómo vas comprendiendo. Puedes cambiar de nivel cuando quieras.
-      </p>
-      <div className="mt-8">
+    <div className="magic-levels-page">
+      <div className="magic-levels-page__stars" aria-hidden="true" />
+      <div className="magic-levels-page__content">
+        <header className="magic-levels-page__heading">
+          <p>✦ El mapa de Ñawi</p>
+          <h1>Elige tu camino de lectura</h1>
+          <span>
+            Toca un camino y Ñawi te mostrará qué aventura te espera. Podrás cambiarlo cuando quieras.
+          </span>
+        </header>
         <Suspense
           fallback={
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="magic-levels-page__loading" aria-label="Cargando caminos de lectura">
               <CardSkeleton />
               <CardSkeleton />
               <CardSkeleton />
