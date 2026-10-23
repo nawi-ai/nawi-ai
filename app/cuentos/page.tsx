@@ -1,10 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { StoryArt } from "@/components/brand/story-art";
+import { MagicBookshelf, type MagicBookItem } from "@/components/stories/magic-bookshelf";
 import { Button } from "@/components/ui/button";
 import { LoadError } from "@/components/ui/load-error";
-import { CardSkeleton } from "@/components/ui/skeleton";
 import { settle } from "@/lib/api/http";
 import { LEVELS } from "@/lib/reading-level";
 import { getProgress } from "@/lib/sessions/service";
@@ -15,23 +15,41 @@ export const metadata = { title: "Cuentos" };
 
 export default function CuentosPage() {
   return (
-    <div>
-      <h1 className="text-3xl font-extrabold md:text-4xl">Elige tu próxima aventura</h1>
-      <p className="mt-3 max-w-2xl text-lg leading-8 text-muted">
-        Aquí aparecen los cuentos del nivel que elegiste.
-      </p>
-      <div className="mt-8">
+    <div className="magic-library-page">
+      <div className="magic-library-page__stars" aria-hidden="true" />
+      <div className="magic-library-page__content">
+        <nav className="magic-library-nav" aria-label="Biblioteca">
+          <Link href="/niveles"><span aria-hidden="true">←</span> Cambiar camino</Link>
+          <Link href="/progreso">Mi progreso <span aria-hidden="true">✦</span></Link>
+        </nav>
+
+        <header className="magic-library-hero">
+          <div className="magic-library-hero__copy">
+            <p>✦ La biblioteca encantada</p>
+            <h1>Elige el libro que te llama</h1>
+            <span>
+              Cada portada esconde una aventura. Acércate, descubre su magia y abre la que más te intrigue.
+            </span>
+          </div>
+          <div className="magic-library-hero__nawi" aria-hidden="true">
+            <span />
+            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} priority />
+          </div>
+        </header>
+
+        <div className="magic-library-page__shelf">
         <Suspense
           fallback={
-            <div className="grid gap-4 md:grid-cols-3">
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
+            <div className="magic-library-loading" aria-label="Abriendo la biblioteca">
+              <span />
+              <span />
+              <span />
             </div>
           }
         >
           <Library />
         </Suspense>
+        </div>
       </div>
     </div>
   );
@@ -50,7 +68,7 @@ async function Library() {
 
   if (preferred === null) {
     return (
-      <div>
+      <div className="magic-library-empty">
         {loadMessage ? <LoadError message={loadMessage} /> : null}
         <p className="text-lg leading-8">Elige un nivel para ver sus cuentos.</p>
         <Button href="/niveles" className="mt-4">
@@ -61,37 +79,42 @@ async function Library() {
   }
 
   if (stories.length === 0) {
-    return <p className="text-lg">Todavía no hay cuentos en {level?.name ?? "este nivel"}.</p>;
+    return <p className="magic-library-empty">Todavía no hay cuentos en {level?.name ?? "este nivel"}.</p>;
   }
 
+  const books: MagicBookItem[] = stories.map((story) => {
+    const state = states.find((item) => item.storyId === story.id);
+    const storyLevel = LEVELS.find((item) => item.id === story.level);
+    const status = state?.status === "completed"
+      ? "Leído"
+      : state?.status === "in_progress"
+        ? "En progreso"
+        : "Nuevo";
+
+    return {
+      id: story.id,
+      levelName: storyLevel?.name ?? "Historia mágica",
+      minutes: story.minutes,
+      status,
+      summary: story.summary,
+      title: story.title,
+    };
+  });
+
   return (
-    <div>
+    <div className="magic-library">
       {loadMessage ? <LoadError message={loadMessage} /> : null}
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {stories.map((story) => {
-          const state = states.find((item) => item.storyId === story.id);
-          const level = LEVELS.find((item) => item.id === story.level);
-          return (
-            <article key={story.id} className="flex flex-col overflow-hidden rounded-[28px] border border-line bg-surface shadow-sm">
-              <StoryArt storyId={story.id} />
-              <div className="flex flex-1 flex-col p-5">
-                <p className="text-sm font-extrabold text-leaf">
-                  {level?.name} · {story.minutes} min
-                  {state?.status === "completed" ? " · Leído" : ""}
-                  {state?.status === "in_progress" ? " · En progreso" : ""}
-                </p>
-                <h2 className="mt-2 text-2xl font-extrabold leading-tight">{story.title}</h2>
-                <p className="mt-2 flex-1 text-base leading-7 text-muted">{story.summary}</p>
-                <Button href={`/cuentos/${story.id}`} className="mt-5">
-                  Leer cuento
-                </Button>
-              </div>
-            </article>
-          );
-        })}
+      <div className="magic-library__heading">
+        <div>
+          <small>Tu estante de lectura</small>
+          <h2>{level?.name ?? "Historias mágicas"}</h2>
+        </div>
+        <span>{stories.length} libros esperando</span>
       </div>
-      <p className="mt-6 text-sm text-muted">
-        ¿Quieres otro nivel? <Link href="/niveles" className="font-extrabold text-leaf">Cambiar nivel</Link>
+
+      <MagicBookshelf books={books} />
+      <p className="magic-library__change">
+        ¿Buscas otros libros? <Link href="/niveles">Explorar otro camino <span aria-hidden="true">→</span></Link>
       </p>
     </div>
   );
