@@ -1,3 +1,5 @@
+import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -21,9 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-      <StoryDetail params={params} />
-    </Suspense>
+    <div className="magic-story-page">
+      <div className="magic-story-page__stars" aria-hidden="true" />
+      <Suspense fallback={<Skeleton className="magic-story-loading" />}>
+        <StoryDetail params={params} />
+      </Suspense>
+    </div>
   );
 }
 
@@ -37,29 +42,65 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
   const level = LEVELS.find((item) => item.id === card.level);
 
   return (
-    <article className="grid items-start gap-6 md:grid-cols-[1.1fr_0.9fr]">
-      <StoryArt storyId={story.id} className="h-64 w-full" />
-      <div>
-        <p className="text-sm font-extrabold text-leaf">
-          {level?.name} · {card.minutes} min
-        </p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-tight md:text-4xl">{card.title}</h1>
-        <p className="mt-4 text-lg leading-8">{card.summary}</p>
-        <h2 className="mt-6 text-xl font-extrabold">Vamos a practicar</h2>
-        <ul className="mt-2 space-y-1 text-base leading-7">
-          {card.skills.map((skill) => (
-            <li key={skill}>{skill}</li>
-          ))}
-        </ul>
-        <p className="mt-4 text-base leading-7 text-muted">
-          Si una respuesta no sale, Ñawi da pistas y otra pregunta para pensarla. Si vas comprendiendo, aparece un reto. La respuesta abierta también se puede decir en voz alta.
-        </p>
-        <div className="mt-6">
+    <div className="magic-story-page__content">
+      <nav className="magic-story-nav" aria-label="Antes de leer">
+        <Link href="/cuentos"><span aria-hidden="true">←</span> Volver a la biblioteca</Link>
+        <Link href="/progreso">Mi progreso <span aria-hidden="true">✦</span></Link>
+      </nav>
+
+      <article className="magic-story-preview">
+        <section className="magic-story-preview__visual" aria-label={`Portada de ${card.title}`}>
+          <div className="magic-story-preview__orbit" aria-hidden="true"><span /><span /><span /></div>
+          <div className="magic-story-cover">
+            <span className="magic-story-cover__spine" aria-hidden="true" />
+            <span className="magic-story-cover__spark magic-story-cover__spark--top" aria-hidden="true">✦</span>
+            <span className="magic-story-cover__spark magic-story-cover__spark--bottom" aria-hidden="true">✦</span>
+            <p>{level?.name} · {card.minutes} min</p>
+            <div className="magic-story-cover__art">
+              <StoryArt storyId={story.id} className="h-full w-full" />
+            </div>
+            <h2>{card.title}</h2>
+            <span>Una historia de Ñawi</span>
+          </div>
+          <div className="magic-story-preview__nawi" aria-hidden="true">
+            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} priority />
+          </div>
+          <div className="magic-story-preview__pedestal" aria-hidden="true"><span /></div>
+        </section>
+
+        <section className="magic-story-preview__details">
+          <p className="magic-story-preview__eyebrow">✦ Un libro te ha elegido</p>
+          <h1>{card.title}</h1>
+          <p className="magic-story-preview__summary">{card.summary}</p>
+
+          <div className="magic-story-facts" aria-label="Datos de la lectura">
+            <div><strong>{card.minutes}</strong><span>minutos</span></div>
+            <div><strong>{story.pageStarts.length}</strong><span>páginas</span></div>
+            <div><strong>{card.skills.length}</strong><span>descubrimientos</span></div>
+          </div>
+
+          <div className="magic-story-skills">
+            <p>En esta aventura descubrirás</p>
+            <ul>
+              {card.skills.map((skill, index) => (
+                <li key={skill}><span>{index + 1}</span>{skill}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="magic-story-guide">
+            <span aria-hidden="true">✦</span>
+            <p>
+              Ñawi te acompañará con pistas y preguntas para pensar. Puedes responder escribiendo o usando tu voz.
+            </p>
+          </div>
+
+          <div className="magic-story-preview__actions">
           {identity.kind === "reader" &&
           identity.preferredLevel !== null &&
           identity.preferredLevel !== story.level ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-base leading-7">
+            <div className="magic-story-level-warning">
+              <p>
                 Este cuento es de {level?.name}. Tu biblioteca muestra los de{" "}
                 {LEVELS.find((item) => item.id === identity.preferredLevel)?.name}.
               </p>
@@ -71,8 +112,10 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
               level={identity.kind === "reader" ? identity.preferredLevel : null}
             />
           )}
-        </div>
-      </div>
-    </article>
+          </div>
+          <p className="magic-story-preview__footnote">Cuando estés listo, la portada se abrirá y comenzará la historia.</p>
+        </section>
+      </article>
+    </div>
   );
 }

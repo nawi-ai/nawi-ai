@@ -39,12 +39,14 @@ export function StartReading({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button type="button" disabled={pending} onClick={start}>
-          {pending ? "Abriendo..." : level ? "Empezar a leer" : "Elige tu nivel"}
+    <div className="magic-start-reading">
+      <div className="magic-start-reading__buttons">
+        <Button type="button" disabled={pending} onClick={start} className="magic-start-reading__primary">
+          <span aria-hidden="true">✦</span>
+          {pending ? "Abriendo el libro..." : level ? "Abrir y empezar a leer" : "Elige tu camino"}
+          <span aria-hidden="true">→</span>
         </Button>
-        <Button href="/cuentos" variant="secondary">
+        <Button href="/cuentos" variant="secondary" className="magic-start-reading__secondary">
           Volver a la biblioteca
         </Button>
       </div>
