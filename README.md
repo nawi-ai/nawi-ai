@@ -4,6 +4,8 @@ Tu compa de lectura IA. Cuentos cortos en español, narración con la voz del na
 
 Ñawi acompaña la lectura. No es una evaluación clínica ni reemplaza a un docente.
 
+Para ver cómo acompaña a un niño, sin términos técnicos: [Una tarde con Ñawi](docs/una-tarde-con-nawi.md).
+
 ## Requisitos
 
 - Node.js 22
