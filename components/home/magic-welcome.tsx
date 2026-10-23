@@ -78,11 +78,33 @@ function MagicCursor() {
 export function MagicWelcome({ enterHref }: { enterHref: string }) {
   const router = useRouter();
   const [entering, setEntering] = useState(false);
+  const navigationTimer = useRef<number | null>(null);
+  const resetTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const resetPortal = () => setEntering(false);
+    window.addEventListener("pageshow", resetPortal);
+
+    return () => {
+      window.removeEventListener("pageshow", resetPortal);
+      if (navigationTimer.current !== null) window.clearTimeout(navigationTimer.current);
+      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+    };
+  }, []);
 
   const enter = useCallback(() => {
     if (entering) return;
     setEntering(true);
-    window.setTimeout(() => router.push(enterHref), 1500);
+
+    navigationTimer.current = window.setTimeout(() => {
+      navigationTimer.current = null;
+      router.push(enterHref);
+    }, 1500);
+
+    resetTimer.current = window.setTimeout(() => {
+      resetTimer.current = null;
+      setEntering(false);
+    }, 1900);
   }, [enterHref, entering, router]);
 
   return (

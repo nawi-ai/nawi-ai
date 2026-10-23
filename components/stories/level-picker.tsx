@@ -9,31 +9,66 @@ import { Notice } from "@/components/ui/notice";
 import { ApiClientError, apiRequest } from "@/lib/api/browser";
 import { LEVELS, type ReadingLevel } from "@/lib/reading-level";
 
-const LEVEL_GUIDANCE: Record<ReadingLevel, string> = {
-  1: "Aquí encontraremos pistas claras y conoceremos a cada personaje paso a paso.",
-  2: "Aquí uniremos pistas para descubrir lo que sienten y piensan los personajes.",
-  3: "Aquí pensaremos más profundo y defenderemos nuestras propias ideas.",
-};
-
 const LEVEL_SCENES: Record<
   ReadingLevel,
-  { theme: "meadow" | "forest" | "summit"; destination: string; symbol: string }
+  {
+    theme: "meadow" | "forest" | "summit";
+    destination: string;
+    symbol: string;
+    path: string;
+  }
 > = {
-  1: { theme: "meadow", destination: "Sendero de las pistas", symbol: "✦" },
-  2: { theme: "forest", destination: "Bosque de los secretos", symbol: "☾" },
-  3: { theme: "summit", destination: "Cumbre de las ideas", symbol: "★" },
+  1: {
+    theme: "meadow",
+    destination: "Sendero de las pistas",
+    symbol: "✦",
+    path: "M 500 500 C 445 430 335 390 275 320 C 215 250 195 178 165 92",
+  },
+  2: {
+    theme: "forest",
+    destination: "Bosque de los secretos",
+    symbol: "☾",
+    path: "M 500 500 C 540 415 455 350 505 275 C 555 205 470 150 500 72",
+  },
+  3: {
+    theme: "summit",
+    destination: "Cumbre de las ideas",
+    symbol: "★",
+    path: "M 500 500 C 565 430 660 395 720 325 C 785 250 810 174 845 92",
+  },
 };
 
 export function LevelPicker({ current }: { current: ReadingLevel | null }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadingLevel>(current ?? 1);
+  const [hovered, setHovered] = useState<ReadingLevel | null>(null);
   const [pending, setPending] = useState<ReadingLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const active = hovered ?? selected;
   const selectedLevel = LEVELS.find((level) => level.id === selected) ?? LEVELS[0];
+  const selectedScene = LEVEL_SCENES[selected];
+
+  function select(level: ReadingLevel) {
+    if (pending !== null) return;
+    setSelected(level);
+    setError(null);
+  }
+
+  function moveSelection(direction: -1 | 1) {
+    if (pending !== null) return;
+    const index = LEVELS.findIndex((level) => level.id === selected);
+    const nextIndex = (index + direction + LEVELS.length) % LEVELS.length;
+    select(LEVELS[nextIndex].id);
+  }
 
   async function choose(level: ReadingLevel) {
     setPending(level);
+    setHovered(null);
     setError(null);
+
+    const travelTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 80 : 1500;
+    await new Promise((resolve) => window.setTimeout(resolve, travelTime));
+
     try {
       await apiRequest("/api/profile", {
         method: "POST",
@@ -48,16 +83,58 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
   }
 
   return (
-    <section className="magic-level-picker">
-      <aside className="magic-level-picker__guide" aria-live="polite">
-        <Link className="magic-level-picker__back" href="/">
-          <span aria-hidden="true">←</span> Volver al portal
-        </Link>
-        <div className="magic-level-picker__speech">
-          <p>{LEVEL_GUIDANCE[selected]}</p>
+    <section
+      className="magic-route-picker"
+      data-active={active}
+      data-traveling={pending ?? ""}
+    >
+      <Link className="magic-route-picker__back" href="/">
+        <span aria-hidden="true">←</span> Volver al portal
+      </Link>
+
+      <div
+        className="magic-route-map"
+        role="radiogroup"
+        aria-label="Tres caminos de lectura"
+        onMouseLeave={() => setHovered(null)}
+      >
+        <div className="magic-route-map__sky" aria-hidden="true">
+          <span className="magic-route-map__moon" />
+          <span className="magic-route-map__horizon magic-route-map__horizon--far" />
+          <span className="magic-route-map__horizon magic-route-map__horizon--near" />
+          <span className="magic-route-map__trees" />
+          <span className="magic-route-map__mountains" />
         </div>
-        <div className="magic-level-picker__nawi" aria-hidden="true">
-          <span className="magic-level-picker__halo" />
+
+        <svg
+          className="magic-route-map__paths"
+          viewBox="0 0 1000 540"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {LEVELS.map((level) => {
+            const scene = LEVEL_SCENES[level.id];
+            return (
+              <g key={level.id} data-route={level.id} data-active={active === level.id}>
+                <path
+                  className="magic-route-map__path-hit"
+                  d={scene.path}
+                  onMouseEnter={() => setHovered(level.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => select(level.id)}
+                />
+                <path className="magic-route-map__path-aura" d={scene.path} />
+                <path className="magic-route-map__path-shadow" d={scene.path} />
+                <path className="magic-route-map__path-rim" d={scene.path} />
+                <path className="magic-route-map__path-ground" d={scene.path} />
+                <path className="magic-route-map__path-light" d={scene.path} />
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="magic-route-map__traveler" aria-hidden="true">
+          <span className="magic-route-map__traveler-glow" />
           <Image
             src="/nawi-mago.png"
             alt=""
@@ -66,83 +143,120 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
             loading="eager"
           />
         </div>
-      </aside>
 
-      <div className="magic-level-picker__choices">
-        <div className="magic-level-picker__list" role="radiogroup" aria-label="Caminos de lectura">
-          {LEVELS.map((level) => {
-            const isSelected = selected === level.id;
-            const scene = LEVEL_SCENES[level.id];
+        {LEVELS.map((level) => {
+          const scene = LEVEL_SCENES[level.id];
+          const isSelected = selected === level.id;
 
-            return (
-              <button
-                key={level.id}
-                className={`magic-path-card magic-path-card--${scene.theme}`}
-                data-selected={isSelected}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => {
-                  setSelected(level.id);
-                  setError(null);
-                }}
-              >
-                <span className="magic-path-card__scene" aria-hidden="true">
-                  <i className="magic-path-card__orb">{scene.symbol}</i>
-                  <i className="magic-path-card__land magic-path-card__land--back" />
-                  <i className="magic-path-card__land magic-path-card__land--front" />
-                  <i className="magic-path-card__trail">
-                    <b />
-                  </i>
-                  <i className="magic-path-card__destination" />
-                </span>
-
-                <span className="magic-path-card__copy">
-                  <span className="magic-path-card__eyebrow">
-                    Camino {level.id} · {scene.destination}
-                  </span>
-                  <strong>{level.name}</strong>
-                  <span className="magic-path-card__description">{level.description}</span>
-                  <span className="magic-path-card__meta">
-                    <em>{level.difficulty}</em>
-                    <span>{level.details[0]}</span>
-                  </span>
-                </span>
-
-                <span className="magic-path-card__choice" aria-hidden="true">
-                  <span>{isSelected ? "Elegido" : "Explorar"}</span>
-                  <i>{isSelected ? "✓" : "→"}</i>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="magic-level-picker__action">
-          <p>
-            Elegiste <strong>{selectedLevel.name}</strong>
-          </p>
-          <button
-            type="button"
-            disabled={pending !== null}
-            onClick={() => choose(selected)}
-          >
-            <span aria-hidden="true">✦</span>
-            {pending === selected ? "Abriendo la biblioteca..." : `Entrar a ${selectedLevel.name}`}
-            <span aria-hidden="true">→</span>
-          </button>
-        </div>
-
-        {error ? (
-          <div className="magic-level-picker__notice">
-            <Notice tone="error">{error}</Notice>
-          </div>
-        ) : null}
-
-        <p className="magic-level-picker__disclaimer">
-          Los caminos orientan la experiencia y no equivalen a una evaluación psicopedagógica.
-        </p>
+          return (
+            <button
+              key={level.id}
+              className={`magic-route-destination magic-route-destination--${level.id}`}
+              data-theme={scene.theme}
+              data-selected={isSelected}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              disabled={pending !== null}
+              onMouseEnter={() => setHovered(level.id)}
+              onFocus={() => setHovered(level.id)}
+              onBlur={() => setHovered(null)}
+              onClick={() => select(level.id)}
+            >
+              <span className="magic-route-destination__portal" aria-hidden="true">
+                {scene.symbol}
+              </span>
+              <span className="magic-route-destination__copy">
+                <small>{scene.destination}</small>
+                <strong>{level.name}</strong>
+                <em>{level.difficulty}</em>
+              </span>
+              <span className="magic-route-destination__status" aria-hidden="true">
+                {isSelected ? "✓ Elegido" : "Elegir"}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      <div
+        className="magic-mobile-route"
+        data-theme={selectedScene.theme}
+        aria-label={`Camino seleccionado: ${selectedScene.destination}`}
+      >
+        <div className="magic-mobile-route__scene" aria-hidden="true">
+          <span className="magic-mobile-route__orb">{selectedScene.symbol}</span>
+          <span className="magic-mobile-route__land magic-mobile-route__land--far" />
+          <span className="magic-mobile-route__land magic-mobile-route__land--near" />
+          <span className="magic-mobile-route__trail" />
+          <span className="magic-mobile-route__goal" />
+          <span className="magic-mobile-route__traveler">
+            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} loading="eager" />
+          </span>
+        </div>
+
+        <button
+          className="magic-mobile-route__arrow magic-mobile-route__arrow--left"
+          type="button"
+          disabled={pending !== null}
+          aria-label="Ver el camino anterior"
+          onClick={() => moveSelection(-1)}
+        >
+          ←
+        </button>
+        <button
+          className="magic-mobile-route__arrow magic-mobile-route__arrow--right"
+          type="button"
+          disabled={pending !== null}
+          aria-label="Ver el siguiente camino"
+          onClick={() => moveSelection(1)}
+        >
+          →
+        </button>
+
+        <div className="magic-mobile-route__copy">
+          <small>
+            Camino {selectedLevel.id} de {LEVELS.length}
+          </small>
+          <h2>{selectedScene.destination}</h2>
+          <strong>{selectedLevel.name}</strong>
+          <p>{selectedLevel.description}</p>
+          <span>{selectedLevel.difficulty}</span>
+        </div>
+
+        <div className="magic-mobile-route__dots" aria-hidden="true">
+          {LEVELS.map((level) => (
+            <i key={level.id} data-active={selected === level.id} />
+          ))}
+        </div>
+      </div>
+
+      <div className="magic-route-confirm" aria-live="polite">
+        <div>
+          <small>Camino elegido</small>
+          <strong>{selectedScene.destination}</strong>
+          <span>{selectedLevel.details[0]}</span>
+        </div>
+        <button
+          type="button"
+          disabled={pending !== null}
+          onClick={() => choose(selected)}
+        >
+          <span aria-hidden="true">✦</span>
+          {pending === selected ? "Ñawi está viajando..." : "Confirmar este camino"}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      {error ? (
+        <div className="magic-route-picker__notice">
+          <Notice tone="error">{error}</Notice>
+        </div>
+      ) : null}
+
+      <p className="magic-route-picker__disclaimer">
+        Los caminos orientan la experiencia y no equivalen a una evaluación psicopedagógica.
+      </p>
     </section>
   );
 }
