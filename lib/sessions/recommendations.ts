@@ -1,4 +1,4 @@
-import type { QuestionType, ReadingLevel } from "@/lib/reading-level";
+import type { QuestionType, ReadingLevel, SkillId } from "@/lib/reading-level";
 import { QUESTION_TYPE_LABEL } from "@/lib/reading-level";
 import type { TypeResult } from "@/lib/sessions/flow";
 
@@ -6,6 +6,7 @@ export type StoryRef = {
   id: string;
   level: ReadingLevel;
   title: string;
+  skills?: SkillId[];
 };
 
 export type Recommendation = {
@@ -33,6 +34,7 @@ export function recommendForSession(input: {
   preferredLevel: ReadingLevel | null;
   activityLevel: ReadingLevel;
   completedStoryIds: string[];
+  focusSkill?: SkillId | null;
 }): Recommendation {
   const counted = input.results.filter((result) => !result.pendingReview);
   const strengths = counted.filter((result) => result.correct).map((result) => STRENGTH_COPY[result.type]);
@@ -44,6 +46,7 @@ export function recommendForSession(input: {
     activityLevel: input.activityLevel,
     completedStoryIds: input.completedStoryIds,
     missed,
+    focusSkill: input.focusSkill,
   });
 
   const recommendation = recommendationCopy(missed, nextStoryId !== null);
@@ -55,6 +58,7 @@ export function recommendFromHistory(input: {
   stories: StoryRef[];
   preferredLevel: ReadingLevel | null;
   completedStoryIds: string[];
+  focusSkill?: SkillId | null;
 }): Recommendation | null {
   if (input.sessions.length === 0) return null;
 
@@ -65,6 +69,7 @@ export function recommendFromHistory(input: {
     preferredLevel: input.preferredLevel,
     activityLevel: input.preferredLevel ?? 1,
     completedStoryIds: input.completedStoryIds,
+    focusSkill: input.focusSkill,
   });
 
   const caution =
@@ -84,6 +89,7 @@ export function pickNextStory(input: {
   activityLevel: ReadingLevel;
   completedStoryIds: string[];
   missed: QuestionType[];
+  focusSkill?: SkillId | null;
 }) {
   const level = input.missed.includes("literal")
     ? input.activityLevel
@@ -91,7 +97,10 @@ export function pickNextStory(input: {
   const remaining = input.stories.filter(
     (story) => !input.completedStoryIds.includes(story.id) && story.level === level,
   );
-  return remaining[0]?.id ?? null;
+  const focused = input.focusSkill
+    ? remaining.filter((story) => story.skills?.includes(input.focusSkill as SkillId))
+    : [];
+  return focused[0]?.id ?? remaining[0]?.id ?? null;
 }
 
 function supportFor(missed: QuestionType[]) {

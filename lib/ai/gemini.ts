@@ -10,6 +10,7 @@ import { isRetryableGeminiError } from "@/lib/ai/gemini-retry";
 import { EVALUATION_SYSTEM, evaluationPrompt } from "@/lib/ai/prompts";
 import { evaluationResponseSchema, type EvaluationResponse } from "@/lib/validation/schemas";
 import { geminiConfig } from "@/lib/env.server";
+import { acceptSocraticQuestion } from "@/lib/tutor/socratic";
 
 const TIMEOUT_MS = 20_000;
 
@@ -130,4 +131,49 @@ function mapGeminiError(error: unknown) {
     return new AppError(429, "ai_quota", "Ahora hay muchas evaluaciones. Espera un momento e inténtalo otra vez.");
   }
   return new AppError(502, "ai_unavailable", "No pudimos evaluar esta respuesta ahora. Puedes intentarlo otra vez.");
+}
+
+export async function requestSocraticQuestion(input: {
+  readerId: string;
+  childWords: string;
+  placeHint: string;
+  forbidden: string[];
+}): Promise<string | null> {
+  const config = geminiConfig();
+  if (!config) return null;
+  try {
+    assertEvaluationRate(input.readerId);
+    const ai = new GoogleGenAI({ apiKey: config.apiKey });
+    const response = await ai.models.generateContent({
+      model: config.model,
+      contents: [
+        "Escribe una sola pregunta para un niño de 6 a 8 años.",
+        "Empieza citando lo que dijo, con la palabra Dijiste.",
+        "No des la respuesta. No digas cuál opción era. No inventes hechos.",
+        "La pregunta solo señala el lugar de la pista.",
+        `El niño dijo: ${input.childWords}`,
+        `Lugar para mirar: ${input.placeHint}`,
+        'Devuelve JSON {"question":"..."} con una sola pregunta.',
+      ].join("\n"),
+      config: {
+        systemInstruction:
+          "Eres un tutor socrático de lectura. Haces una pregunta a partir de lo que el niño dijo. No entregas la respuesta ni eliges la siguiente actividad.",
+        temperature: 0.3,
+        maxOutputTokens: 180,
+        responseMimeType: "application/json",
+        responseJsonSchema: {
+          type: "object",
+          properties: { question: { type: "string" } },
+          required: ["question"],
+        },
+        abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+      },
+    });
+    const payload = JSON.parse(extractJson(response.text ?? "")) as { question?: unknown };
+    return typeof payload.question === "string"
+      ? acceptSocraticQuestion(payload.question, input.forbidden, input.childWords)
+      : null;
+  } catch {
+    return null;
+  }
 }

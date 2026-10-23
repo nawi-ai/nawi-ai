@@ -15,6 +15,7 @@ import { speakOnce } from "@/components/reader/use-narration";
 import { ApiClientError, apiRequest } from "@/lib/api/browser";
 import { QUESTION_TYPE_LABEL } from "@/lib/reading-level";
 import { expectedAttempt, isQuestionClosed, nextAdaptiveQuestion, questionsOnPath } from "@/lib/sessions/adapt";
+import { contextFromHistory } from "@/lib/tutor/context";
 import type { AnswerView, SessionDetail } from "@/lib/sessions/views";
 
 export function QuizView({ detail }: { detail: SessionDetail }) {
@@ -29,8 +30,9 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const dictation = useDictation(setText);
 
-  const path = questionsOnPath(detail.questions, answers);
-  const plannedId = nextAdaptiveQuestion(detail.questions, answers);
+  const tutor = contextFromHistory(detail.questions, answers, detail.masterySeeds);
+  const path = questionsOnPath(detail.questions, answers, tutor);
+  const plannedId = nextAdaptiveQuestion(detail.questions, answers, tutor);
   const question =
     (holdingId ? detail.questions.find((item) => item.id === holdingId) : null) ??
     detail.questions.find((item) => item.id === plannedId) ??
@@ -123,7 +125,7 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
 
   function continueReading() {
     if (!question) return;
-    const upcoming = nextAdaptiveQuestion(detail.questions, answers);
+    const upcoming = nextAdaptiveQuestion(detail.questions, answers, tutor);
     setHoldingId(null);
     setText("");
     setChoice("");
@@ -259,7 +261,27 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
                 <div>
                   <strong>{latest.isCorrect ? "¡Lo lograste!" : "Seguimos juntos"}</strong>
                   <p>{latest.feedback}</p>
-                  {latest.hint ? <p className="magic-quiz-feedback__hint">Pista: {latest.hint}</p> : null}
+                  {latest.hint ? (
+                    <div>
+                      <p className="magic-quiz-feedback__hint">
+                        {latest.hint.startsWith("Dijiste") ? "Ñawi pregunta: " : "Pista: "}
+                        {latest.hint}
+                      </p>
+                      {latest.hint.startsWith("Dijiste") ? (
+                        <button
+                          type="button"
+                          className="magic-quiz-listen"
+                          onClick={() => {
+                            const spoke = speakOnce(latest.hint ?? "");
+                            setVoiceNote(spoke ? null : "Este navegador no puede leer la pregunta en voz alta.");
+                          }}
+                        >
+                          <Volume2 aria-hidden="true" size={19} />
+                          <span>Escuchar a Ñawi</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {latest.needsReview ? (
                     <small>Esta respuesta quedó poco clara. No la contaremos como un error.</small>
                   ) : null}
