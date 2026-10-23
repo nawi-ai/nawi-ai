@@ -59,12 +59,20 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
       .sort((a, b) => a.attemptNumber - b.attemptNumber);
   }
 
+  function backToReader() {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace(`/leer/${detail.session.id}`);
+  }
+
   function guardBack() {
     if (dirty) {
       setLeaveHref("__back__");
       return;
     }
-    router.push(`/leer/${detail.session.id}`);
+    backToReader();
   }
 
   async function submit() {
@@ -174,6 +182,7 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
       <div className="magic-quiz-shell">
         <nav className="magic-quiz-nav" aria-label="Navegación del desafío">
           <MagicBackButton
+            className={leaveHref ? "magic-back-button--hidden" : ""}
             fallbackHref={`/leer/${detail.session.id}`}
             ariaLabel="Volver a la lectura"
             onBack={guardBack}
@@ -200,10 +209,11 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
           <aside className="magic-quiz-guide" aria-label="Guía de Ñawi">
             <span className="magic-quiz-guide__halo" aria-hidden="true" />
             <Image
-              src="/nawi-mago.png"
+              src="/nawi-mago.webp"
               alt="Ñawi sosteniendo su libro mágico"
-              width={460}
-              height={560}
+              width={1211}
+              height={1299}
+              sizes="(max-width: 760px) 180px, 300px"
               priority
             />
             <div className="magic-quiz-guide__note">
@@ -353,7 +363,7 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
               {leaveHref === "__back__" ? (
                 <Button
                   type="button"
-                  onClick={() => router.push(`/leer/${detail.session.id}`)}
+                  onClick={backToReader}
                 >
                   Salir
                 </Button>

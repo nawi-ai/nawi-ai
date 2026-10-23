@@ -81,6 +81,24 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
   };
 }
 
+export async function getReaderSession(sessionId: string) {
+  const identity = await requireReader();
+  assertUuid(sessionId);
+  const repository = await repositoryFor(identity.mode);
+  const session = await repository.getSessionForReader(sessionId, identity.readerId);
+  if (!session) {
+    throw new AppError(404, "session_not_found", "No encontramos esa lectura.");
+  }
+  const story = getStory(session.storyId);
+  if (!story) {
+    throw new AppError(404, "story_not_found", "Ese cuento ya no está en la biblioteca.");
+  }
+  return {
+    session: toSessionView(session),
+    story: toReaderStory(story),
+  };
+}
+
 export async function evaluateAttempt(sessionId: string, body: unknown) {
   const identity = await requireReader();
   assertUuid(sessionId);
@@ -278,6 +296,28 @@ export async function getProgress(): Promise<ProgressView> {
     nextStory: advice?.nextStoryId ? getStoryCard(advice.nextStoryId) : null,
     geminiConfigured: identity.geminiConfigured,
     ...skillProfileFor(completed, answers),
+  };
+}
+
+export async function getLibraryState() {
+  const identity = await requireReader();
+  const repository = await repositoryFor(identity.mode);
+  const reader = await repository.ensureReader(identity.readerId);
+  const sessions = await repository.listSessions(identity.readerId);
+  const storyStates: StoryState[] = [];
+
+  for (const story of listStories()) {
+    const related = sessions.filter((session) => session.storyId === story.id);
+    if (related.some((session) => session.status === "in_progress")) {
+      storyStates.push({ storyId: story.id, status: "in_progress" });
+    } else if (related.some((session) => session.status === "completed")) {
+      storyStates.push({ storyId: story.id, status: "completed" });
+    }
+  }
+
+  return {
+    preferredLevel: reader.preferredLevel,
+    storyStates,
   };
 }
 

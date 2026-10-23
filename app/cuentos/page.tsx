@@ -8,7 +8,7 @@ import { LoadError } from "@/components/ui/load-error";
 import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { settle } from "@/lib/api/http";
 import { LEVELS } from "@/lib/reading-level";
-import { getProgress } from "@/lib/sessions/service";
+import { getLibraryState } from "@/lib/sessions/service";
 import { listStoryCardsForLevel } from "@/lib/stories/catalog";
 import type { StoryState } from "@/lib/sessions/views";
 
@@ -34,7 +34,7 @@ export default function CuentosPage() {
           </div>
           <div className="magic-library-hero__nawi" aria-hidden="true">
             <span />
-            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} priority />
+            <Image src="/nawi-mago.webp" alt="" width={1211} height={1299} sizes="260px" priority />
           </div>
         </header>
 
@@ -57,13 +57,13 @@ export default function CuentosPage() {
 }
 
 async function Library() {
-  const progress = await settle(
-    () => getProgress(),
+  const libraryState = await settle(
+    () => getLibraryState(),
     "No pudimos cargar tu historial. Los cuentos siguen aquí.",
   );
-  const states: StoryState[] = progress.ok ? progress.data.storyStates : [];
-  const loadMessage = progress.ok || progress.reason !== "error" ? null : progress.message;
-  const preferred = progress.ok ? progress.data.preferredLevel : null;
+  const states: StoryState[] = libraryState.ok ? libraryState.data.storyStates : [];
+  const loadMessage = libraryState.ok || libraryState.reason !== "error" ? null : libraryState.message;
+  const preferred = libraryState.ok ? libraryState.data.preferredLevel : null;
   const level = LEVELS.find((item) => item.id === preferred);
   const stories = preferred === null ? [] : listStoryCardsForLevel(preferred);
 
@@ -114,9 +114,6 @@ async function Library() {
       </div>
 
       <MagicBookshelf books={books} />
-      <p className="magic-library__change">
-        ¿Buscas otros libros? <Link href="/niveles">Explorar otro camino <span aria-hidden="true">→</span></Link>
-      </p>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { AppShell, ShellSkeleton } from "@/components/layout/app-shell";
 import { SetupPanel } from "@/components/layout/setup-panel";
+import { MagicCursor } from "@/components/ui/magic-cursor";
 import { AppError } from "@/lib/api/http";
 import { loadIdentity } from "@/lib/auth/identity";
 import { isRemotePersistenceConfigured } from "@/lib/env.server";
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${nunito.variable} h-full`}>
       <body className="flex min-h-full flex-col font-sans text-ink antialiased">
+        <MagicCursor />
         <Suspense fallback={<ShellSkeleton />}>
           <Frame>{children}</Frame>
         </Suspense>

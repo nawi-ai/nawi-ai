@@ -57,13 +57,18 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
             <span className="magic-story-cover__spark magic-story-cover__spark--bottom" aria-hidden="true">✦</span>
             <p>{level?.name} · {card.minutes} min</p>
             <div className="magic-story-cover__art">
-              <StoryArt storyId={story.id} className="h-full w-full" />
+              <StoryArt
+                storyId={story.id}
+                className="h-full w-full"
+                sizes="(max-width: 760px) 78vw, 420px"
+                priority
+              />
             </div>
             <h2>{card.title}</h2>
             <span>Una historia de Ñawi</span>
           </div>
           <div className="magic-story-preview__nawi" aria-hidden="true">
-            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} priority />
+            <Image src="/nawi-mago.webp" alt="" width={1211} height={1299} sizes="240px" priority />
           </div>
           <div className="magic-story-preview__pedestal" aria-hidden="true"><span /></div>
         </section>
@@ -104,7 +109,6 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
                 Este cuento es de {level?.name}. Tu biblioteca muestra los de{" "}
                 {LEVELS.find((item) => item.id === identity.preferredLevel)?.name}.
               </p>
-              <MagicBackButton fallbackHref="/cuentos" ariaLabel="Volver a mis cuentos" />
             </div>
           ) : (
             <StartReading

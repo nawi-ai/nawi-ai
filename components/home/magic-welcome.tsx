@@ -13,103 +13,36 @@ const STARS = Array.from({ length: 52 }, (_, index) => ({
   delay: `${-(index % 11) * 0.37}s`,
 }));
 
-function MagicCursor() {
-  const layer = useRef<HTMLDivElement>(null);
-  const core = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const finePointer = window.matchMedia("(pointer: fine)").matches;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!finePointer || reducedMotion) return;
-
-    let lastSpark = 0;
-    const move = (event: PointerEvent) => {
-      if (!layer.current || !core.current) return;
-      core.current.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0)`;
-      core.current.style.opacity = "1";
-      if (Date.now() - lastSpark < 30) return;
-      lastSpark = Date.now();
-
-      const spark = document.createElement("span");
-      spark.className = "magic-home__cursor-spark";
-      spark.textContent = Math.random() > 0.34 ? "✦" : "•";
-      spark.style.setProperty("--spark-size", `${12 + Math.random() * 10}px`);
-      spark.style.setProperty("--spark-drift", `${(Math.random() - 0.5) * 34}px`);
-      spark.style.left = `${event.clientX}px`;
-      spark.style.top = `${event.clientY}px`;
-      layer.current.appendChild(spark);
-      window.setTimeout(() => spark.remove(), 950);
-    };
-
-    const burst = (event: PointerEvent) => {
-      if (!layer.current) return;
-      const ring = document.createElement("span");
-      ring.className = "magic-home__cursor-burst";
-      ring.style.left = `${event.clientX}px`;
-      ring.style.top = `${event.clientY}px`;
-      layer.current.appendChild(ring);
-      window.setTimeout(() => ring.remove(), 900);
-    };
-
-    const leave = () => {
-      if (core.current) core.current.style.opacity = "0";
-    };
-
-    window.addEventListener("pointermove", move, { passive: true });
-    window.addEventListener("pointerdown", burst, { passive: true });
-    window.addEventListener("pointerleave", leave);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerdown", burst);
-      window.removeEventListener("pointerleave", leave);
-    };
-  }, []);
-
-  return (
-    <div ref={layer} className="magic-home__cursor-layer" aria-hidden="true">
-      <span ref={core} className="magic-home__cursor-core">
-        <i className="magic-home__wand-tip">✦</i>
-        <b className="magic-home__wand-handle" />
-      </span>
-    </div>
-  );
-}
-
 export function MagicWelcome({ enterHref }: { enterHref: string }) {
   const router = useRouter();
   const [entering, setEntering] = useState(false);
   const navigationTimer = useRef<number | null>(null);
-  const resetTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    router.prefetch(enterHref);
     const resetPortal = () => setEntering(false);
     window.addEventListener("pageshow", resetPortal);
 
     return () => {
       window.removeEventListener("pageshow", resetPortal);
       if (navigationTimer.current !== null) window.clearTimeout(navigationTimer.current);
-      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
     };
-  }, []);
+  }, [enterHref, router]);
 
   const enter = useCallback(() => {
     if (entering) return;
     setEntering(true);
+    const transitionTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420;
 
     navigationTimer.current = window.setTimeout(() => {
       navigationTimer.current = null;
-      router.push(enterHref);
-    }, 1500);
-
-    resetTimer.current = window.setTimeout(() => {
-      resetTimer.current = null;
       setEntering(false);
-    }, 1900);
+      router.push(enterHref);
+    }, transitionTime);
   }, [enterHref, entering, router]);
 
   return (
     <section className={`magic-home ${entering ? "magic-home--entering" : ""}`}>
-      <MagicCursor />
       <div className="magic-home__sky" aria-hidden="true">
         <span className="magic-home__galaxy" />
         <span className="magic-home__nebula magic-home__nebula--one" />
@@ -155,10 +88,11 @@ export function MagicWelcome({ enterHref }: { enterHref: string }) {
           <span className="magic-home__ring magic-home__ring--two" aria-hidden="true" />
           <span className="magic-home__glow" aria-hidden="true" />
           <Image
-            src="/nawi-mago.png"
+            src="/nawi-mago.webp"
             alt="Ñawi, una capibara maga con un libro brillante"
             width={1211}
             height={1299}
+            sizes="(max-width: 700px) 88vw, 570px"
             priority
           />
         </div>

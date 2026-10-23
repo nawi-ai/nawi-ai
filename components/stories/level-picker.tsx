@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Notice } from "@/components/ui/notice";
@@ -48,6 +48,10 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
   const selectedLevel = LEVELS.find((level) => level.id === selected) ?? LEVELS[0];
   const selectedScene = LEVEL_SCENES[selected];
 
+  useEffect(() => {
+    router.prefetch("/cuentos");
+  }, [router]);
+
   function select(level: ReadingLevel) {
     if (pending !== null) return;
     setSelected(level);
@@ -66,16 +70,17 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
     setHovered(null);
     setError(null);
 
-    const travelTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 80 : 1500;
-    await new Promise((resolve) => window.setTimeout(resolve, travelTime));
-
     try {
-      await apiRequest("/api/profile", {
-        method: "POST",
-        body: JSON.stringify({ preferredLevel: level }),
-      });
+      const travelTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420;
+      await Promise.all([
+        apiRequest("/api/profile", {
+          method: "POST",
+          body: JSON.stringify({ preferredLevel: level }),
+        }),
+        new Promise((resolve) => window.setTimeout(resolve, travelTime)),
+      ]);
+      setPending(null);
       router.push("/cuentos");
-      router.refresh();
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : "No pudimos guardar el nivel.");
       setPending(null);
@@ -138,11 +143,11 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
         <div className="magic-route-map__traveler" aria-hidden="true">
           <span className="magic-route-map__traveler-glow" />
           <Image
-            src="/nawi-mago.png"
+            src="/nawi-mago.webp"
             alt=""
             width={1211}
             height={1299}
-            loading="eager"
+            sizes="260px"
           />
         </div>
 
@@ -193,7 +198,7 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
           <span className="magic-mobile-route__trail" />
           <span className="magic-mobile-route__goal" />
           <span className="magic-mobile-route__traveler">
-            <Image src="/nawi-mago.png" alt="" width={1211} height={1299} loading="eager" />
+            <Image src="/nawi-mago.webp" alt="" width={1211} height={1299} sizes="180px" />
           </span>
         </div>
 

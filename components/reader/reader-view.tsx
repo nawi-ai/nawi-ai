@@ -35,7 +35,8 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
 
   useEffect(() => {
     if (narration.status !== "playing") return;
-    setPage(spokenPage);
+    const frame = window.requestAnimationFrame(() => setPage(spokenPage));
+    return () => window.cancelAnimationFrame(frame);
   }, [narration.status, spokenPage]);
 
   function turn(next: number) {

@@ -40,13 +40,22 @@ export function MagicBookshelf({ books }: { books: MagicBookItem[] }) {
             data-book={(index % 3) + 1}
             data-active={index === activeIndex}
           >
-            <Link className="magic-book__cover" href={`/cuentos/${book.id}`} aria-label={`Abrir ${book.title}`}>
+            <Link
+              className="magic-book__cover"
+              href={`/cuentos/${book.id}`}
+              prefetch
+              aria-label={`Abrir ${book.title}`}
+            >
               <span className="magic-book__spine" aria-hidden="true" />
               <span className="magic-book__corner magic-book__corner--top" aria-hidden="true">✦</span>
               <span className="magic-book__corner magic-book__corner--bottom" aria-hidden="true">✦</span>
               <span className="magic-book__status">{book.status}</span>
               <div className="magic-book__art">
-                <StoryArt storyId={book.id} className="h-full w-full" />
+                <StoryArt
+                  storyId={book.id}
+                  className="h-full w-full"
+                  sizes="(max-width: 760px) 74vw, 290px"
+                />
               </div>
               <div className="magic-book__copy">
                 <p>{book.levelName} · {book.minutes} min</p>

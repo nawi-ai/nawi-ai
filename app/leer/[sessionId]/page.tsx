@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LoadError } from "@/components/ui/load-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { settle } from "@/lib/api/http";
-import { getSessionDetail } from "@/lib/sessions/service";
+import { getReaderSession } from "@/lib/sessions/service";
 
 export default function ReaderPage({ params }: { params: Promise<{ sessionId: string }> }) {
   return (
@@ -17,7 +17,7 @@ export default function ReaderPage({ params }: { params: Promise<{ sessionId: st
 
 async function ReaderLoader({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  const result = await settle(() => getSessionDetail(sessionId), "No pudimos abrir el cuento.");
+  const result = await settle(() => getReaderSession(sessionId), "No pudimos abrir el cuento.");
   if (!result.ok && result.reason === "setup") return null;
   if (!result.ok && result.reason === "missing") {
     return (
