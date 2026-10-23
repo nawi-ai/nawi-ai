@@ -22,31 +22,48 @@ export function BookSpread({
   fontSize: number;
   onPage: (index: number) => void;
 }) {
-  const [leaf, setLeaf] = useState<{ page: number; direction: "next" | "prev" } | null>(null);
+  const [turn, setTurn] = useState<{ from: number; direction: "next" | "prev" } | null>(null);
   const previous = useRef(pageIndex);
 
   useEffect(() => {
     if (previous.current === pageIndex) return;
-    const direction = pageIndex > previous.current ? "next" : "prev";
     const from = previous.current;
+    const direction = pageIndex > from ? "next" : "prev";
     previous.current = pageIndex;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) return;
-    setLeaf({ page: from, direction });
-    const timer = window.setTimeout(() => setLeaf(null), 720);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setTurn({ from, direction });
+    const timer = window.setTimeout(() => setTurn(null), 920);
     return () => window.clearTimeout(timer);
   }, [pageIndex]);
 
   const page = pages[pageIndex] ?? [];
   const start = pageStarts[pageIndex] ?? 0;
+  const atStart = pageIndex === 0;
+  const atEnd = pageIndex >= pages.length - 1;
 
   return (
-    <div className="mt-5">
-      <div className="book-scene relative mx-auto max-w-2xl">
-        <div className="absolute top-3 bottom-3 -left-2 w-3 rounded-l-2xl bg-[#2f684b] shadow-md" aria-hidden="true" />
-        <div className="relative min-h-[28rem] overflow-hidden rounded-r-[28px] rounded-l-md border border-line bg-[#fffdf8] shadow-[8px_16px_40px_rgb(38_53_47_/_14%)]">
-          <PageFace
+    <section className="magic-reader-book" aria-label={`Libro abierto, página ${pageIndex + 1} de ${pages.length}`}>
+      <div className="magic-reader-book__stage">
+        <button
+          type="button"
+          className="magic-reader-book__arrow magic-reader-book__arrow--prev"
+          onClick={() => onPage(pageIndex - 1)}
+          disabled={atStart}
+          aria-label="Ir a la página anterior"
+        >
+          <ChevronLeft aria-hidden="true" />
+        </button>
+
+        <div className="magic-reader-book__cover" aria-hidden="true" />
+        <div className="magic-reader-book__spread">
+          <IllustrationPage
             storyId={storyId}
+            page={page}
+            pageNumber={pageIndex + 1}
+            total={pages.length}
+          />
+          <span className="magic-reader-book__spine" aria-hidden="true" />
+          <TextPage
             page={page}
             pageNumber={pageIndex + 1}
             total={pages.length}
@@ -54,55 +71,76 @@ export function BookSpread({
             spokenParagraph={spokenParagraph}
             fontSize={fontSize}
           />
-          {leaf ? (
-            <div
-              className={`book-leaf absolute inset-0 z-10 bg-[#fffdf8] ${leaf.direction === "next" ? "book-leaf-next" : "book-leaf-prev"}`}
-              aria-hidden="true"
-            >
-              <PageFace
-                storyId={storyId}
-                page={pages[leaf.direction === "next" ? leaf.page : pageIndex] ?? []}
-                pageNumber={(leaf.direction === "next" ? leaf.page : pageIndex) + 1}
-                total={pages.length}
-                start={pageStarts[leaf.direction === "next" ? leaf.page : pageIndex] ?? 0}
-                spokenParagraph={null}
-                fontSize={fontSize}
-              />
-            </div>
+
+          {turn ? (
+            <TurningLeaf
+              direction={turn.direction}
+              storyId={storyId}
+              page={pages[turn.from] ?? []}
+              pageNumber={turn.from + 1}
+              total={pages.length}
+              start={pageStarts[turn.from] ?? 0}
+              fontSize={fontSize}
+            />
           ) : null}
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute right-0 bottom-0 h-16 w-16 bg-[linear-gradient(135deg,transparent_50%,#f3efe4_50%)]"
-          />
+        </div>
+
+        <button
+          type="button"
+          className="magic-reader-book__arrow magic-reader-book__arrow--next"
+          onClick={() => onPage(pageIndex + 1)}
+          disabled={atEnd}
+          aria-label="Ir a la página siguiente"
+        >
+          <ChevronRight aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="magic-reader-book__progress" aria-live="polite">
+        <span>Página {pageIndex + 1} de {pages.length}</span>
+        <div aria-hidden="true">
+          {pages.map((_, index) => <i key={index} data-active={index === pageIndex} />)}
         </div>
       </div>
-      <div className="mx-auto mt-4 flex max-w-2xl items-center justify-between gap-3">
-        <button
-          type="button"
-          className="inline-flex min-h-12 items-center gap-1 rounded-full bg-surface px-4 font-extrabold text-leaf disabled:text-muted"
-          onClick={() => onPage(pageIndex - 1)}
-          disabled={pageIndex === 0}
-        >
-          <ChevronLeft aria-hidden="true" size={20} /> Anterior
-        </button>
-        <p className="text-sm font-extrabold text-muted" aria-live="polite">
-          Página {pageIndex + 1} de {pages.length}
-        </p>
-        <button
-          type="button"
-          className="inline-flex min-h-12 items-center gap-1 rounded-full bg-surface px-4 font-extrabold text-leaf disabled:text-muted"
-          onClick={() => onPage(pageIndex + 1)}
-          disabled={pageIndex >= pages.length - 1}
-        >
-          Siguiente <ChevronRight aria-hidden="true" size={20} />
-        </button>
+    </section>
+  );
+}
+
+function IllustrationPage({
+  storyId,
+  page,
+  pageNumber,
+  total,
+}: {
+  storyId: string;
+  page: string[];
+  pageNumber: number;
+  total: number;
+}) {
+  const sceneCaption = firstSentence(page[0] ?? "Una nueva escena de la historia.");
+
+  return (
+    <div className="magic-reader-book__page magic-reader-book__page--art">
+      <span className="magic-reader-book__corner magic-reader-book__corner--left" aria-hidden="true">✦</span>
+      <div className="magic-reader-book__illustration">
+        <span className="magic-reader-book__illustration-glow" aria-hidden="true" />
+        <StoryArt
+          storyId={storyId}
+          sceneIndex={pageNumber - 1}
+          sceneText={page.join(" ")}
+          className="h-full w-full"
+        />
+        <span className="magic-reader-book__scene-number" aria-hidden="true">{pageNumber}</span>
+      </div>
+      <div className="magic-reader-book__caption">
+        <small>Escena {pageNumber} de {total}</small>
+        <p>{sceneCaption}</p>
       </div>
     </div>
   );
 }
 
-function PageFace({
-  storyId,
+function TextPage({
   page,
   pageNumber,
   total,
@@ -110,7 +148,6 @@ function PageFace({
   spokenParagraph,
   fontSize,
 }: {
-  storyId: string;
   page: string[];
   pageNumber: number;
   total: number;
@@ -119,26 +156,69 @@ function PageFace({
   fontSize: number;
 }) {
   return (
-    <div className="flex h-full min-h-[28rem] flex-col bg-[linear-gradient(90deg,#f4efe3_0%,#fffdf8_7%,#fffdf8_100%)] px-6 py-5 sm:px-10">
-      <StoryArt storyId={storyId} className="h-28 w-full rounded-2xl" />
-      <div className="mt-4 flex-1 space-y-3" aria-label={`Página ${pageNumber} de ${total}`}>
+    <div className="magic-reader-book__page magic-reader-book__page--text">
+      <span className="magic-reader-book__corner magic-reader-book__corner--right" aria-hidden="true">✦</span>
+      <div
+        className="magic-reader-book__paragraphs"
+        aria-label={`Texto de la página ${pageNumber} de ${total}`}
+        style={{ "--reader-font-size": `${fontSize}px` } as React.CSSProperties}
+      >
         {page.map((paragraph, index) => {
           const absolute = start + index;
           const spoken = spokenParagraph === absolute;
           return (
-            <p
-              key={`${pageNumber}-${absolute}`}
-              style={{ fontSize }}
-              className={`leading-relaxed ${spoken ? "rounded-2xl bg-sun/70 px-3 py-2" : ""}`}
-            >
+            <p key={`${pageNumber}-${absolute}`} data-spoken={spoken}>
               {paragraph}
             </p>
           );
         })}
       </div>
-      <p className="mt-4 text-center text-sm font-extrabold text-muted">
-        {pageNumber} / {total}
-      </p>
+      <span className="magic-reader-book__folio">{pageNumber}</span>
     </div>
   );
+}
+
+function TurningLeaf({
+  direction,
+  storyId,
+  page,
+  pageNumber,
+  total,
+  start,
+  fontSize,
+}: {
+  direction: "next" | "prev";
+  storyId: string;
+  page: string[];
+  pageNumber: number;
+  total: number;
+  start: number;
+  fontSize: number;
+}) {
+  return (
+    <div className={`magic-reader-book__turn magic-reader-book__turn--${direction}`} aria-hidden="true">
+      <div className="magic-reader-book__turn-face magic-reader-book__turn-face--front">
+        {direction === "next" ? (
+          <TextPage
+            page={page}
+            pageNumber={pageNumber}
+            total={total}
+            start={start}
+            spokenParagraph={null}
+            fontSize={fontSize}
+          />
+        ) : (
+          <IllustrationPage storyId={storyId} page={page} pageNumber={pageNumber} total={total} />
+        )}
+      </div>
+      <div className="magic-reader-book__turn-face magic-reader-book__turn-face--back">
+        <span aria-hidden="true">✦</span>
+      </div>
+    </div>
+  );
+}
+
+function firstSentence(value: string) {
+  const sentence = value.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() ?? value;
+  return sentence.length > 128 ? `${sentence.slice(0, 125).trimEnd()}…` : sentence;
 }

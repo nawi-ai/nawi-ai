@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { MagicBookshelf, type MagicBookItem } from "@/components/stories/magic-bookshelf";
 import { Button } from "@/components/ui/button";
 import { LoadError } from "@/components/ui/load-error";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { settle } from "@/lib/api/http";
 import { LEVELS } from "@/lib/reading-level";
 import { getProgress } from "@/lib/sessions/service";
@@ -19,7 +20,7 @@ export default function CuentosPage() {
       <div className="magic-library-page__stars" aria-hidden="true" />
       <div className="magic-library-page__content">
         <nav className="magic-library-nav" aria-label="Biblioteca">
-          <Link href="/niveles"><span aria-hidden="true">←</span> Cambiar camino</Link>
+          <MagicBackButton fallbackHref="/niveles" ariaLabel="Volver a elegir camino" />
           <Link href="/progreso">Mi progreso <span aria-hidden="true">✦</span></Link>
         </nav>
 

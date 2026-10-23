@@ -5,6 +5,7 @@ import { Pause, Play } from "lucide-react";
 
 import { BookSpread } from "@/components/reader/book-spread";
 import { Button } from "@/components/ui/button";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { Notice } from "@/components/ui/notice";
 import { useNarration } from "@/components/reader/use-narration";
 import { LEVELS } from "@/lib/reading-level";
@@ -12,7 +13,12 @@ import { pageOfParagraph, pagesFromStarts } from "@/lib/stories/pages";
 import type { ReaderStory } from "@/lib/stories/public";
 import type { SessionView } from "@/lib/sessions/views";
 
-const SIZES = [20, 24, 28, 32];
+const SIZES = [
+  { value: 18, label: "A" },
+  { value: 20, label: "A+" },
+  { value: 22, label: "A++" },
+  { value: 24, label: "A+++" },
+];
 const RATES = [
   { value: 0.8, label: "Lento" },
   { value: 0.95, label: "Normal" },
@@ -23,7 +29,7 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
   const narration = useNarration(story.paragraphs);
   const pages = pagesFromStarts(story.paragraphs, story.pageStarts);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(24);
+  const [size, setSize] = useState(20);
   const level = LEVELS.find((item) => item.id === session.readingLevel);
   const spokenPage = pageOfParagraph(story.pageStarts, narration.paragraphIndex);
 
@@ -43,14 +49,18 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
       : `/sesion/${session.id}/preguntas`;
 
   return (
-    <article className="mx-auto max-w-3xl">
-      <Button href="/cuentos" variant="ghost" className="px-3">
-        Volver a la biblioteca
-      </Button>
-      <p className="mt-4 text-sm font-extrabold text-leaf">
-        {level?.name} · {story.minutes} min
-      </p>
-      <h1 className="mt-2 text-3xl font-extrabold leading-tight md:text-4xl">{story.title}</h1>
+    <article className="magic-reader-page">
+      <header className="magic-reader-page__header">
+        <MagicBackButton
+          fallbackHref={`/cuentos/${story.id}`}
+          ariaLabel="Volver a la información del cuento"
+        />
+        <div>
+          <p>{level?.name} · {story.minutes} min</p>
+          <h1>{story.title}</h1>
+        </div>
+        <span aria-hidden="true">✦</span>
+      </header>
 
       <BookSpread
         storyId={story.id}
@@ -62,19 +72,39 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
         onPage={turn}
       />
 
-      <div className="mt-5 flex flex-wrap gap-2" aria-label="Tamaño del texto">
+      <div className="magic-reader-tools">
+        <div className="magic-reader-tools__type" aria-label="Tamaño del texto">
+          <span>Tamaño de lectura</span>
+          <div>
         {SIZES.map((option) => (
           <button
-            key={option}
+            key={option.value}
             type="button"
-            aria-pressed={size === option}
-            className={`min-h-12 rounded-full px-4 font-extrabold ${size === option ? "bg-leaf text-white" : "bg-surface text-ink"}`}
-            onClick={() => setSize(option)}
+            aria-pressed={size === option.value}
+            onClick={() => setSize(option.value)}
           >
-            {option === 20 ? "A" : option === 24 ? "A+" : option === 28 ? "A++" : "A+++"}
-            <span className="sr-only"> tamaño {option}</span>
+            {option.label}
+            <span className="sr-only">, tamaño {option.value}</span>
           </button>
         ))}
+          </div>
+        </div>
+
+        <div className="magic-reader-tools__rate" aria-label="Velocidad de la narración">
+          <span>Ritmo de Ñawi</span>
+          <div>
+            {RATES.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={narration.rate === option.value}
+                onClick={() => narration.setRate(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {narration.voiceNote ? (
@@ -83,21 +113,8 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
         </div>
       ) : null}
 
-      <div className="sticky bottom-3 mt-6 rounded-[28px] border border-line bg-surface/95 p-3 shadow-lg backdrop-blur">
-        <div className="flex flex-wrap gap-2" aria-label="Velocidad de la narración">
-          {RATES.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              aria-pressed={narration.rate === option.value}
-              className={`min-h-12 rounded-full px-4 font-extrabold ${narration.rate === option.value ? "bg-sky text-ink" : "text-muted"}`}
-              onClick={() => narration.setRate(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="magic-reader-audio">
+        <div className="magic-reader-audio__buttons">
           <Button
             type="button"
             onClick={() => {
@@ -126,7 +143,7 @@ export function ReaderView({ session, story }: { session: SessionView; story: Re
             Reanudar
           </Button>
         </div>
-        <Button href={finishedHref} variant="sun" className="mt-3 w-full">
+        <Button href={finishedHref} variant="sun" className="magic-reader-audio__finish">
           Terminé de leer
         </Button>
       </div>

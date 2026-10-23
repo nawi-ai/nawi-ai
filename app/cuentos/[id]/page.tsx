@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { StoryArt } from "@/components/brand/story-art";
 import { StartReading } from "@/components/stories/start-reading";
-import { Button } from "@/components/ui/button";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadIdentity } from "@/lib/auth/identity";
 import { LEVELS } from "@/lib/reading-level";
@@ -44,7 +44,7 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="magic-story-page__content">
       <nav className="magic-story-nav" aria-label="Antes de leer">
-        <Link href="/cuentos"><span aria-hidden="true">←</span> Volver a la biblioteca</Link>
+        <MagicBackButton fallbackHref="/cuentos" ariaLabel="Volver a la biblioteca" />
         <Link href="/progreso">Mi progreso <span aria-hidden="true">✦</span></Link>
       </nav>
 
@@ -104,7 +104,7 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
                 Este cuento es de {level?.name}. Tu biblioteca muestra los de{" "}
                 {LEVELS.find((item) => item.id === identity.preferredLevel)?.name}.
               </p>
-              <Button href="/cuentos">Volver a mis cuentos</Button>
+              <MagicBackButton fallbackHref="/cuentos" ariaLabel="Volver a mis cuentos" />
             </div>
           ) : (
             <StartReading

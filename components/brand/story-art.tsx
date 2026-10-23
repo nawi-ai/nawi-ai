@@ -148,15 +148,120 @@ const art: Record<string, { label: string; node: React.ReactNode }> = {
 
 export function StoryArt({
   storyId,
+  sceneIndex = 0,
+  sceneText = "",
   className = "h-40 w-full",
 }: {
   storyId: string;
+  sceneIndex?: number;
+  sceneText?: string;
   className?: string;
 }) {
   const scene = art[storyId] ?? art["luna-jardin-estrellas"];
   return (
-    <svg viewBox="0 0 320 180" className={className} role="img" aria-label={scene?.label}>
+    <svg
+      viewBox="0 0 320 180"
+      className={className}
+      role="img"
+      aria-label={`${scene?.label ?? "Escena del cuento"}, escena ${sceneIndex + 1}`}
+    >
       {scene?.node}
+      {sceneText ? <SceneMotif text={sceneText} index={sceneIndex} /> : null}
     </svg>
   );
+}
+
+function SceneMotif({ text, index }: { text: string; index: number }) {
+  const value = text.toLocaleLowerCase("es");
+  const shift = (index % 3) * 8;
+
+  if (hasAny(value, ["basura", "bolsa", "vaso", "tapaba", "muro"])) {
+    return (
+      <g opacity=".9" transform={`translate(${shift} 0)`}>
+        <rect x="218" y="119" width="28" height="18" rx="4" fill="#7A5D78" transform="rotate(-12 232 128)" />
+        <rect x="248" y="126" width="18" height="11" rx="3" fill="#F28B72" transform="rotate(14 257 132)" />
+        <path d="M205 132c22-7 46-4 72 5" fill="none" stroke="#FFF4D1" strokeWidth="3" strokeDasharray="4 5" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["río", "agua", "orilla", "lluvia"])) {
+    return (
+      <g opacity=".78" transform={`translate(0 ${shift / 2})`}>
+        <path d="M14 142c30-15 54 15 84 0s55 15 85 0 54 15 84 0 31 4 42 0" fill="none" stroke="#DDF7FF" strokeWidth="5" strokeLinecap="round" />
+        <circle cx="256" cy="106" r="5" fill="#E9FCFF" />
+        <circle cx="276" cy="116" r="3" fill="#E9FCFF" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["estrella", "luz", "brill", "luciérnaga", "noche"])) {
+    return (
+      <g fill="#FFF3A8" opacity=".94" transform={`translate(${shift} 0)`}>
+        <path d="M236 76l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z" />
+        <circle cx="276" cy="92" r="4" />
+        <circle cx="212" cy="52" r="3" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["cometa", "viento", "voló", "cielo"])) {
+    return (
+      <g transform={`translate(${-shift} 0)`}>
+        <path d="M236 45l25 24-25 25-23-25z" fill="#F28B72" stroke="#FFF3C4" strokeWidth="3" />
+        <path d="M237 94c18 18-8 22 11 40" fill="none" stroke="#6E4B75" strokeWidth="3" strokeDasharray="5 5" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["rama", "árbol", "hoja", "maíz", "jardín", "flor"])) {
+    return (
+      <g opacity=".9" transform={`translate(${shift} 0)`}>
+        <path d="M229 125c8-25 21-44 38-59" fill="none" stroke="#315E43" strokeWidth="6" strokeLinecap="round" />
+        <ellipse cx="250" cy="85" rx="12" ry="6" fill="#75A96E" transform="rotate(-28 250 85)" />
+        <ellipse cx="266" cy="71" rx="11" ry="6" fill="#8CC07D" transform="rotate(26 266 71)" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["tambor", "canción", "sonido", "cant", "voz", "escuchó"])) {
+    return (
+      <g fill="none" stroke="#FFF0A8" strokeLinecap="round" opacity=".9" transform={`translate(${shift} 0)`}>
+        <path d="M230 72c18-14 37-9 46 4" strokeWidth="4" />
+        <path d="M226 87c23-17 49-12 62 6" strokeWidth="3" />
+        <circle cx="218" cy="98" r="6" fill="#F6BD55" stroke="none" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["horno", "fuego", "pan", "calor"])) {
+    return (
+      <g opacity=".9" transform={`translate(${shift} 0)`}>
+        <path d="M246 128c-22-23 5-35 1-56 25 20 31 43 14 59z" fill="#F28B72" />
+        <path d="M252 127c-9-13 5-21 4-32 11 11 15 22 7 34z" fill="#FFD879" />
+      </g>
+    );
+  }
+
+  if (hasAny(value, ["cuaderno", "historia", "escrib", "letrero", "abuelo"])) {
+    return (
+      <g transform={`translate(${shift} 0)`}>
+        <path d="M216 104c16-8 32-7 47 2v39c-15-8-31-9-47-1z" fill="#FFF9F0" stroke="#8C6A48" strokeWidth="3" />
+        <path d="M263 106c14-7 28-6 40 2v38c-12-7-26-8-40-1z" fill="#FFF9F0" stroke="#8C6A48" strokeWidth="3" />
+        <path d="M263 108v37" stroke="#8C6A48" strokeWidth="2" />
+      </g>
+    );
+  }
+
+  return (
+    <g fill="#FFF0A8" opacity=".88" transform={`translate(${shift} 0)`}>
+      <circle cx="244" cy="80" r="5" />
+      <circle cx="270" cy="105" r="3" />
+      <path d="M286 68l3 6 7 1-5 5 1 7-6-4-6 4 1-7-5-5 7-1z" />
+    </g>
+  );
+}
+
+function hasAny(value: string, terms: string[]) {
+  return terms.some((term) => value.includes(term));
 }

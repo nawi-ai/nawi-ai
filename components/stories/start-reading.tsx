@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { Notice } from "@/components/ui/notice";
 import { ApiClientError, apiRequest } from "@/lib/api/browser";
 import type { ReadingLevel } from "@/lib/reading-level";
@@ -46,9 +47,11 @@ export function StartReading({
           {pending ? "Abriendo el libro..." : level ? "Abrir y empezar a leer" : "Elige tu camino"}
           <span aria-hidden="true">→</span>
         </Button>
-        <Button href="/cuentos" variant="secondary" className="magic-start-reading__secondary">
-          Volver a la biblioteca
-        </Button>
+        <MagicBackButton
+          fallbackHref="/cuentos"
+          ariaLabel="Volver a la biblioteca"
+          className="magic-start-reading__secondary"
+        />
       </div>
       {error ? <Notice tone="error">{error}</Notice> : null}
     </div>

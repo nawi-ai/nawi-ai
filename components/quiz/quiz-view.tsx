@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Square, Volume2 } from "lucide-react";
+import { Check, Mic, Sparkles, Square, Volume2 } from "lucide-react";
 
 import { NawiCharacter } from "@/components/brand/nawi-character";
 import { shouldShowAnswerForm } from "@/components/quiz/answer-form";
 import { useDictation } from "@/components/quiz/use-dictation";
 import { Button } from "@/components/ui/button";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { Notice } from "@/components/ui/notice";
 import { speakOnce } from "@/components/reader/use-narration";
 import { ApiClientError, apiRequest } from "@/lib/api/browser";
@@ -57,12 +59,12 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
       .sort((a, b) => a.attemptNumber - b.attemptNumber);
   }
 
-  function guard(href: string) {
+  function guardBack() {
     if (dirty) {
-      setLeaveHref(href);
+      setLeaveHref("__back__");
       return;
     }
-    router.push(href);
+    router.push(`/leer/${detail.session.id}`);
   }
 
   async function submit() {
@@ -122,20 +124,22 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
 
   if (!question) {
     return (
-      <section className="mx-auto max-w-2xl rounded-[28px] border border-line bg-surface p-6">
-        <NawiCharacter className="mx-auto h-32 w-32" />
-        <h1 className="mt-4 text-center text-3xl font-extrabold">Ya respondiste las preguntas</h1>
-        <p className="mt-3 text-center text-lg leading-8 text-muted">
-          Ñawi puede calcular el resultado con lo que quedó guardado.
-        </p>
-        {error ? (
-          <div className="mt-4">
-            <Notice tone="error">{error}</Notice>
-          </div>
-        ) : null}
-        <Button className="mt-6 w-full" type="button" disabled={pending} onClick={finish}>
-          {pending ? "Calculando..." : "Ver mi resultado"}
-        </Button>
+      <section className="magic-quiz-page magic-quiz-page--complete">
+        <div className="magic-quiz-complete">
+          <span className="magic-quiz-complete__spark" aria-hidden="true">✦</span>
+          <NawiCharacter className="mx-auto h-36 w-36" />
+          <p>DESAFÍO COMPLETADO</p>
+          <h1>Ya respondiste las preguntas</h1>
+          <span>Ñawi puede calcular el resultado con lo que quedó guardado.</span>
+          {error ? (
+            <div className="mt-4">
+              <Notice tone="error">{error}</Notice>
+            </div>
+          ) : null}
+          <Button className="magic-quiz-complete__button" type="button" disabled={pending} onClick={finish} variant="sun">
+            {pending ? "Calculando..." : "Ver mi resultado"}
+          </Button>
+        </div>
       </section>
     );
   }
@@ -163,175 +167,199 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
         ? "Un reto un poco mayor, porque las anteriores te salieron."
         : returned
           ? "Volviste a esta pregunta. Las pistas siguen sirviendo."
-          : null;
+          : "Busca la pista en la historia y elige con calma.";
 
   return (
-    <section className="mx-auto max-w-2xl">
-      <button type="button" className="font-extrabold text-leaf" onClick={() => guard("/cuentos")}>
-        Volver a la biblioteca
-      </button>
-      <p className="mt-4 text-sm font-extrabold text-muted">
-        Pregunta {index + 1} de {path.length}
-      </p>
-      <div className="mt-2 flex gap-2" aria-hidden="true">
-        {path.map((itemId, dot) => (
-          <span
-            key={itemId}
-            className={`h-2 flex-1 rounded-full ${dot <= index ? "bg-leaf" : "bg-line"}`}
+    <section className="magic-quiz-page">
+      <div className="magic-quiz-shell">
+        <nav className="magic-quiz-nav" aria-label="Navegación del desafío">
+          <MagicBackButton
+            fallbackHref={`/leer/${detail.session.id}`}
+            ariaLabel="Volver a la lectura"
+            onBack={guardBack}
           />
-        ))}
-      </div>
-      <p className="mt-4 text-sm font-extrabold text-leaf">{QUESTION_TYPE_LABEL[question.type]}</p>
-      {roleNote ? <p className="mt-2 text-base leading-7 text-muted">{roleNote}</p> : null}
-      <h1 className="mt-2 text-3xl font-extrabold leading-tight">{question.prompt}</h1>
-      <button
-        type="button"
-        className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-full px-2 font-extrabold text-leaf"
-        onClick={() => {
-          const spoke = speakOnce(question.prompt);
-          setVoiceNote(spoke ? null : "Este navegador no puede leer la pregunta en voz alta.");
-        }}
-      >
-        <Volume2 aria-hidden="true" size={18} /> Escuchar pregunta
-      </button>
-      {voiceNote ? (
-        <div className="mt-3">
-          <Notice>{voiceNote}</Notice>
-        </div>
-      ) : null}
+          <div>
+            <span>DESAFÍO DE COMPRENSIÓN</span>
+            <p>La prueba de las pistas</p>
+          </div>
+          <div className="magic-quiz-nav__count" aria-live="polite">
+            <strong>{index + 1}</strong>
+            <span>de {path.length}</span>
+          </div>
+        </nav>
 
-      {question.format === "open" && !detail.geminiConfigured ? (
-        <div className="mt-4">
-          <Notice>
-            Esta pregunta abierta se evalúa con Gemini. Falta configurar la clave y el modelo en el
-            servidor. Las opciones de los otros cuentos sí se pueden comprobar sin esa clave.
-          </Notice>
+        <div className="magic-quiz-progress" aria-label={`Pregunta ${index + 1} de ${path.length}`}>
+          {path.map((itemId, dot) => (
+            <span key={itemId} data-state={dot < index ? "done" : dot === index ? "current" : "pending"}>
+              {dot < index ? <Check aria-hidden="true" size={13} /> : dot + 1}
+            </span>
+          ))}
         </div>
-      ) : null}
 
-      {showingResult && latest ? (
-        <div className="mt-5 rounded-[28px] border border-line bg-leaf-soft p-4">
-          <div className="flex items-start gap-3">
-            <NawiCharacter className="h-16 w-16 shrink-0" />
-            <div>
-              <p className="font-extrabold">{latest.isCorrect ? "¡Lo lograste!" : "Seguimos juntos"}</p>
-              <p className="mt-1 text-base leading-7">{latest.feedback}</p>
-              {latest.hint ? <p className="mt-2 text-base leading-7">Pista: {latest.hint}</p> : null}
-              {latest.needsReview ? (
-                <p className="mt-2 text-sm leading-6">
-                  Esta respuesta quedó poco clara. No la contaremos como un error.
-                </p>
-              ) : null}
+        <div className="magic-quiz-stage">
+          <aside className="magic-quiz-guide" aria-label="Guía de Ñawi">
+            <span className="magic-quiz-guide__halo" aria-hidden="true" />
+            <Image
+              src="/nawi-mago.png"
+              alt="Ñawi sosteniendo su libro mágico"
+              width={460}
+              height={560}
+              priority
+            />
+            <div className="magic-quiz-guide__note">
+              <Sparkles aria-hidden="true" size={15} />
+              <p>{roleNote}</p>
             </div>
-          </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            {latest.nextAction === "continue" ? (
-              <Button type="button" disabled={pending} onClick={continueReading}>
-                {pending ? "Un momento..." : continueLabel}
-              </Button>
-            ) : (
-              <Button href={`/leer/${detail.session.id}`} variant="secondary">
-                Revisar el cuento
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : null}
+          </aside>
 
-      {showForm ? (
-        <form
-          className="mt-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          {question.format === "choice" ? (
-            <fieldset>
-              <legend className="sr-only">Elige una respuesta</legend>
-              <div className="grid gap-3">
-                {question.choices?.map((option) => (
-                  <label
-                    key={option.id}
-                    className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-3xl border px-4 py-3 text-lg font-bold ${choice === option.id ? "border-leaf bg-leaf-soft" : "border-line bg-surface"}`}
-                  >
-                    <input
-                      type="radio"
-                      name="respuesta"
-                      value={option.id}
-                      checked={choice === option.id}
-                      onChange={() => setChoice(option.id)}
-                      className="h-5 w-5 accent-[#377A58]"
-                    />
-                    {option.label}
-                  </label>
-                ))}
+          <div className="magic-quiz-card">
+            <span className="magic-quiz-card__corner magic-quiz-card__corner--left" aria-hidden="true">✦</span>
+            <span className="magic-quiz-card__corner magic-quiz-card__corner--right" aria-hidden="true">✦</span>
+            <div className="magic-quiz-card__heading">
+              <div>
+                <span>{QUESTION_TYPE_LABEL[question.type]}</span>
+                <small>PREGUNTA {index + 1}</small>
               </div>
-            </fieldset>
-          ) : (
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label htmlFor="respuesta" className="font-extrabold">
-                  Tu respuesta
-                </label>
-                <button
-                  type="button"
-                  className="inline-flex min-h-12 items-center gap-2 rounded-full bg-sun px-4 font-extrabold"
-                  aria-pressed={dictation.listening}
-                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start(text))}
-                >
-                  {dictation.listening ? <Square aria-hidden="true" size={16} /> : <Mic aria-hidden="true" size={18} />}
-                  {dictation.listening ? "Detener" : "Responder con la voz"}
-                </button>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                Puedes decirlo con tus palabras. Ñawi mira la idea, no cómo pronuncias.
-              </p>
-              <textarea
-                id="respuesta"
-                value={text}
-                maxLength={500}
-                rows={4}
-                onChange={(event) => setText(event.target.value)}
-                className="mt-2 w-full rounded-3xl border border-line bg-surface p-4 text-lg leading-7"
-                placeholder="Cuéntalo con tus palabras"
-              />
-              {dictation.note ? (
-                <div className="mt-3">
-                  <Notice>{dictation.note}</Notice>
+              <button
+                type="button"
+                className="magic-quiz-listen"
+                onClick={() => {
+                  const spoke = speakOnce(question.prompt);
+                  setVoiceNote(spoke ? null : "Este navegador no puede leer la pregunta en voz alta.");
+                }}
+              >
+                <Volume2 aria-hidden="true" size={19} />
+                <span>Escuchar</span>
+              </button>
+            </div>
+            <h1>{question.prompt}</h1>
+
+            {voiceNote ? <Notice>{voiceNote}</Notice> : null}
+
+            {question.format === "open" && !detail.geminiConfigured ? (
+              <Notice>
+                Esta pregunta abierta se evalúa con Gemini. Falta configurar la clave y el modelo en el
+                servidor. Las opciones de los otros cuentos sí se pueden comprobar sin esa clave.
+              </Notice>
+            ) : null}
+
+            {showingResult && latest ? (
+              <div className="magic-quiz-feedback" data-correct={latest.isCorrect}>
+                <NawiCharacter className="h-20 w-20 shrink-0" />
+                <div>
+                  <strong>{latest.isCorrect ? "¡Lo lograste!" : "Seguimos juntos"}</strong>
+                  <p>{latest.feedback}</p>
+                  {latest.hint ? <p className="magic-quiz-feedback__hint">Pista: {latest.hint}</p> : null}
+                  {latest.needsReview ? (
+                    <small>Esta respuesta quedó poco clara. No la contaremos como un error.</small>
+                  ) : null}
+                  <div className="magic-quiz-feedback__actions">
+                    {latest.nextAction === "continue" ? (
+                      <Button type="button" disabled={pending} onClick={continueReading} variant="sun">
+                        {pending ? "Un momento..." : continueLabel}
+                      </Button>
+                    ) : (
+                      <Button href={`/leer/${detail.session.id}`} variant="secondary">
+                        Revisar el cuento
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ) : null}
-            </div>
-          )}
-          <Button className="mt-4 w-full" type="submit" disabled={pending}>
-            {pending ? "Comprobando..." : "Comprobar respuesta"}
-          </Button>
-        </form>
-      ) : null}
+              </div>
+            ) : null}
 
-      {error ? (
-        <div className="mt-4">
-          <Notice tone="error">{error}</Notice>
+            {showForm ? (
+              <form
+                className="magic-quiz-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submit();
+                }}
+              >
+                {question.format === "choice" ? (
+                  <fieldset>
+                    <legend className="sr-only">Elige una respuesta</legend>
+                    <div className="magic-quiz-options">
+                      {question.choices?.map((option, optionIndex) => (
+                        <label key={option.id} data-selected={choice === option.id}>
+                          <input
+                            type="radio"
+                            name="respuesta"
+                            value={option.id}
+                            checked={choice === option.id}
+                            onChange={() => setChoice(option.id)}
+                          />
+                          <span className="magic-quiz-options__letter" aria-hidden="true">
+                            {choice === option.id ? <Check size={19} /> : String.fromCharCode(65 + optionIndex)}
+                          </span>
+                          <span>{option.label}</span>
+                          <i aria-hidden="true">✦</i>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ) : (
+                  <div className="magic-quiz-open-answer">
+                    <div>
+                      <label htmlFor="respuesta">Tu respuesta</label>
+                      <button
+                        type="button"
+                        aria-pressed={dictation.listening}
+                        onClick={() => (dictation.listening ? dictation.stop() : dictation.start(text))}
+                      >
+                        {dictation.listening ? <Square aria-hidden="true" size={16} /> : <Mic aria-hidden="true" size={18} />}
+                        {dictation.listening ? "Detener" : "Responder con la voz"}
+                      </button>
+                    </div>
+                    <p>Puedes decirlo con tus palabras. Ñawi mira la idea, no cómo pronuncias.</p>
+                    <textarea
+                      id="respuesta"
+                      value={text}
+                      maxLength={500}
+                      rows={4}
+                      onChange={(event) => setText(event.target.value)}
+                      placeholder="Cuéntalo con tus palabras"
+                    />
+                    {dictation.note ? <Notice>{dictation.note}</Notice> : null}
+                  </div>
+                )}
+                <Button className="magic-quiz-submit" type="submit" disabled={pending} variant="sun">
+                  <Sparkles aria-hidden="true" size={18} />
+                  {pending ? "Comprobando..." : "Comprobar respuesta"}
+                </Button>
+              </form>
+            ) : null}
+
+            {error ? <Notice tone="error">{error}</Notice> : null}
+          </div>
         </div>
-      ) : null}
+      </div>
 
       {leaveHref ? (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="salir-titulo"
-          className="fixed inset-0 z-40 flex items-end justify-center bg-[#26352F]/40 p-4 sm:items-center"
+          className="magic-quiz-dialog"
         >
-          <div className="w-full max-w-md rounded-[28px] bg-surface p-5">
-            <h2 id="salir-titulo" className="text-2xl font-extrabold">
-              ¿Sales sin comprobar?
-            </h2>
-            <p className="mt-2 text-base leading-7 text-muted">Tu respuesta todavía no se guardó.</p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="magic-quiz-dialog__card">
+            <span aria-hidden="true">✦</span>
+            <h2 id="salir-titulo">¿Sales sin comprobar?</h2>
+            <p>Tu respuesta todavía no se guardó.</p>
+            <div>
               <Button type="button" variant="secondary" onClick={() => setLeaveHref(null)}>
                 Seguir aquí
               </Button>
-              <Button href={leaveHref}>Salir</Button>
+              {leaveHref === "__back__" ? (
+                <Button
+                  type="button"
+                  onClick={() => router.push(`/leer/${detail.session.id}`)}
+                >
+                  Salir
+                </Button>
+              ) : (
+                <Button href={leaveHref}>Salir</Button>
+              )}
             </div>
           </div>
         </div>

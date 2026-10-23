@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Notice } from "@/components/ui/notice";
+import { MagicBackButton } from "@/components/ui/magic-back-button";
 import { ApiClientError, apiRequest } from "@/lib/api/browser";
 import { LEVELS, type ReadingLevel } from "@/lib/reading-level";
 
@@ -88,9 +88,11 @@ export function LevelPicker({ current }: { current: ReadingLevel | null }) {
       data-active={active}
       data-traveling={pending ?? ""}
     >
-      <Link className="magic-route-picker__back" href="/">
-        <span aria-hidden="true">←</span> Volver al portal
-      </Link>
+      <MagicBackButton
+        className="magic-route-picker__back"
+        fallbackHref="/"
+        ariaLabel="Volver al portal"
+      />
 
       <div
         className="magic-route-map"
