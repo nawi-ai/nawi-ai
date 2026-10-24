@@ -98,6 +98,7 @@ export function QuizView({ detail }: { detail: SessionDetail }) {
             answer: question.format === "choice" ? choice : text.trim(),
             attemptNumber,
           }),
+          signal: AbortSignal.timeout(25_000),
         },
       );
       setAnswers((current) => [...current, data.answer]);

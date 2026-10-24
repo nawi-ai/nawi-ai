@@ -1,18 +1,33 @@
 import "server-only";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 import { AppError } from "@/lib/api/http";
 import { assertEvaluationRate } from "@/lib/ai/rate-limit";
 import { evaluationKey, rememberEvaluation } from "@/lib/ai/evaluation-memory";
 import { evaluationJsonSchema } from "@/lib/ai/evaluation-schema";
-import { isRetryableGeminiError } from "@/lib/ai/gemini-retry";
+import { geminiStatus, isAbortFailure, isBusyFailure, isQuotaFailure, isRetryableGeminiError } from "@/lib/ai/gemini-retry";
 import { EVALUATION_SYSTEM, evaluationPrompt } from "@/lib/ai/prompts";
 import { evaluationResponseSchema, type EvaluationResponse } from "@/lib/validation/schemas";
 import { geminiConfig } from "@/lib/env.server";
 import { acceptSocraticQuestion } from "@/lib/tutor/socratic";
 
 const TIMEOUT_MS = 20_000;
+
+function thinkingConfigFor(model: string) {
+  if (model.includes("flash-lite")) {
+    return { thinkingLevel: ThinkingLevel.MINIMAL };
+  }
+  // 3.8 Flash rechaza MINIMAL. LOW es el nivel más corto que acepta.
+  return { thinkingLevel: ThinkingLevel.LOW };
+}
+
+function generationHttpOptions() {
+  return {
+    timeout: TIMEOUT_MS,
+    retryOptions: { attempts: 1 },
+  };
+}
 
 export async function requestEvaluation(input: {
   readerId: string;
@@ -61,9 +76,11 @@ async function callGemini(
         config: {
           systemInstruction: EVALUATION_SYSTEM,
           temperature: 0.2,
-          maxOutputTokens: 400,
+          maxOutputTokens: 2048,
+          thinkingConfig: thinkingConfigFor(config.model),
           responseMimeType: "application/json",
           responseJsonSchema: evaluationJsonSchema,
+          httpOptions: generationHttpOptions(),
           abortSignal: AbortSignal.timeout(TIMEOUT_MS),
         },
       });
@@ -74,6 +91,7 @@ async function callGemini(
     }
   }
 
+  if (lastError instanceof AppError) throw lastError;
   throw mapGeminiError(lastError);
 }
 
@@ -124,11 +142,25 @@ function extractJson(text: string) {
 
 function mapGeminiError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (/timeout|aborted|AbortError/i.test(message)) {
+  const status = geminiStatus(error);
+  if (isAbortFailure(message) || status === 504) {
     return new AppError(504, "ai_timeout", "La evaluación tardó demasiado. Puedes intentarlo otra vez.");
   }
-  if (/429|RESOURCE_EXHAUSTED|quota/i.test(message)) {
+  if (isQuotaFailure(status, message)) {
     return new AppError(429, "ai_quota", "Ahora hay muchas evaluaciones. Espera un momento e inténtalo otra vez.");
+  }
+  if (isBusyFailure(status, message)) {
+    return new AppError(503, "ai_busy", "El evaluador está ocupado ahora. Puedes intentarlo otra vez.");
+  }
+  if (status === 404) {
+    return new AppError(
+      502,
+      "ai_model_unavailable",
+      "Ese modelo de Gemini ya no responde. Revisa GEMINI_MODEL.",
+    );
+  }
+  if (process.env.NODE_ENV === "development") {
+    console.error("nawi_gemini", status ?? "sin-estado");
   }
   return new AppError(502, "ai_unavailable", "No pudimos evaluar esta respuesta ahora. Puedes intentarlo otra vez.");
 }
@@ -159,13 +191,16 @@ export async function requestSocraticQuestion(input: {
         systemInstruction:
           "Eres un tutor socrático de lectura. Haces una pregunta a partir de lo que el niño dijo. No entregas la respuesta ni eliges la siguiente actividad.",
         temperature: 0.3,
-        maxOutputTokens: 180,
+        maxOutputTokens: 1024,
+        thinkingConfig: thinkingConfigFor(config.model),
         responseMimeType: "application/json",
         responseJsonSchema: {
           type: "object",
+          additionalProperties: false,
           properties: { question: { type: "string" } },
           required: ["question"],
         },
+        httpOptions: generationHttpOptions(),
         abortSignal: AbortSignal.timeout(TIMEOUT_MS),
       },
     });
