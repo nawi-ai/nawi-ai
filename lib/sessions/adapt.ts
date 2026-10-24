@@ -5,6 +5,8 @@ import {
   nextAttemptNumber,
   type AttemptSnapshot,
 } from "@/lib/sessions/flow";
+import type { TutorContext } from "@/lib/tutor/context";
+import { challengeStreakNeeded } from "@/lib/tutor/policy";
 
 export type AdaptiveQuestion = {
   id: string;
@@ -73,6 +75,7 @@ function firstTryStreak(questions: AdaptiveQuestion[], attempts: AttemptSnapshot
 export function nextAdaptiveQuestion(
   questions: AdaptiveQuestion[],
   attempts: AttemptSnapshot[],
+  tutor?: TutorContext,
 ) {
   const reopened = questions.find((question) => {
     const group = groupFor(question.id, attempts);
@@ -96,7 +99,8 @@ export function nextAdaptiveQuestion(
   const challenge = questions.find(
     (question) => question.role === "challenge" && groupFor(question.id, attempts).length === 0,
   );
-  if (challenge && firstTryStreak(questions, attempts) >= 2) return challenge.id;
+  const needed = tutor ? challengeStreakNeeded(tutor.bandOf(tutor.skillOf(challenge?.id ?? ""))) : 2;
+  if (challenge && needed !== null && firstTryStreak(questions, attempts) >= needed) return challenge.id;
 
   const nextCore = questions.find(
     (question) => question.role === "core" && groupFor(question.id, attempts).length === 0,
@@ -104,11 +108,15 @@ export function nextAdaptiveQuestion(
   return nextCore?.id ?? null;
 }
 
-export function questionsOnPath(questions: AdaptiveQuestion[], attempts: AttemptSnapshot[]) {
+export function questionsOnPath(
+  questions: AdaptiveQuestion[],
+  attempts: AttemptSnapshot[],
+  tutor?: TutorContext,
+) {
   const ids = questions
     .filter((question) => question.role === "core" || groupFor(question.id, attempts).length > 0)
     .map((question) => question.id);
-  const next = nextAdaptiveQuestion(questions, attempts);
+  const next = nextAdaptiveQuestion(questions, attempts, tutor);
   if (next && !ids.includes(next)) ids.push(next);
   return ids;
 }

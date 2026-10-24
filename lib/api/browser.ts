@@ -19,6 +19,13 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
       },
     });
   } catch {
+    if (init?.signal?.aborted) {
+      throw new ApiClientError(
+        "La evaluación tardó demasiado. Puedes intentarlo otra vez.",
+        0,
+        "timeout",
+      );
+    }
     throw new ApiClientError(
       "No hay conexión. Revisa tu internet e inténtalo otra vez.",
       0,

@@ -1,5 +1,6 @@
 import type { NextAction, QuestionType, ReadingLevel, SkillId } from "@/lib/reading-level";
 import type { SkillProfileItem } from "@/lib/sessions/skills";
+import type { MasterySeed, SkillMastery } from "@/lib/tutor/mastery";
 import type { PublicQuestion, ReaderStory, StoryCard } from "@/lib/stories/public";
 
 export type AnswerView = {
@@ -37,6 +38,7 @@ export type SessionDetail = {
   questions: PublicQuestion[];
   answers: AnswerView[];
   geminiConfigured: boolean;
+  masterySeeds: MasterySeed[];
 };
 
 export type StoryState = {
@@ -72,6 +74,8 @@ export type ProgressView = {
   geminiConfigured: boolean;
   skills: SkillProfileItem[];
   profileNote: string | null;
+  mastery: SkillMastery[];
+  levelNote: string | null;
 };
 
 export type TypeBreakdown = {

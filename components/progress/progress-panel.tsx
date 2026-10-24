@@ -67,6 +67,7 @@ export function ProgressPanel({ progress }: { progress: ProgressView }) {
                 <small>Constelación de habilidades</small>
                 <h2>Tu perfil de comprensión</h2>
                 <p className="magic-progress-card__lead">{progress.profileNote}</p>
+                {progress.levelNote ? <p>{progress.levelNote}</p> : null}
                 <ul className="magic-progress-skills">
                   {progress.skills.map((item) => (
                     <li key={item.skill}>
@@ -80,6 +81,7 @@ export function ProgressPanel({ progress }: { progress: ProgressView }) {
                             : item.alone > 0
                               ? "Lo logras por tu cuenta."
                               : "Lo lograste con una pista."}
+                        {bandLabel(progress.mastery.find((mastery) => mastery.skill === item.skill)?.band)}
                       </p>
                     </li>
                   ))}
@@ -165,4 +167,11 @@ export function ProgressPanel({ progress }: { progress: ProgressView }) {
       </div>
     </section>
   );
+}
+
+function bandLabel(band: "unknown" | "support" | "steady" | "stretch" | undefined) {
+  if (band === "support") return " Conviene apoyarla.";
+  if (band === "stretch") return " Ya puede un reto.";
+  if (band === "steady") return " Va estable.";
+  return "";
 }

@@ -3,9 +3,9 @@ import "server-only";
 import { z } from "zod";
 
 import { AppError } from "@/lib/api/http";
-import { requestEvaluation } from "@/lib/ai/gemini";
+import { requestEvaluation, requestSocraticQuestion } from "@/lib/ai/gemini";
 import { loadIdentity, repositoryFor, requireReader } from "@/lib/auth/identity";
-import type { ReadingAnswer } from "@/lib/persistence/types";
+import type { ReadingAnswer, ReadingSession } from "@/lib/persistence/types";
 import { SKILL_STRENGTH, type ReadingLevel } from "@/lib/reading-level";
 import {
   findQuestion,
@@ -28,6 +28,11 @@ import {
 import { expectedAttempt, nextAdaptiveQuestion, questionsOnPath } from "@/lib/sessions/adapt";
 import { recommendForSession, recommendFromHistory } from "@/lib/sessions/recommendations";
 import { buildSkillProfile, profileSentence } from "@/lib/sessions/skills";
+import { contextFromHistory } from "@/lib/tutor/context";
+import { focusSkill, masteryFromSeeds, sessionObservations } from "@/lib/tutor/mastery";
+import { readMisunderstanding } from "@/lib/tutor/misunderstanding";
+import { levelSuggestion } from "@/lib/tutor/policy";
+import { localRebound } from "@/lib/tutor/socratic";
 import type {
   AnswerView,
   ProgressView,
@@ -72,12 +77,14 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
     throw new AppError(404, "story_not_found", "Ese cuento ya no está en la biblioteca.");
   }
   const answers = await repository.listAnswers(session.id, identity.readerId);
+  const history = await historySeeds(repository, identity.readerId, session.id);
   return {
     session: toSessionView(session),
     story: toReaderStory(story),
     questions: toPublicQuestions(story),
     answers: answers.map(toAnswerView),
     geminiConfigured: identity.geminiConfigured,
+    masterySeeds: history,
   };
 }
 
@@ -120,6 +127,8 @@ export async function evaluateAttempt(sessionId: string, body: unknown) {
 
   const stored = await repository.listAnswers(session.id, identity.readerId);
   const snapshots = stored.map(toSnapshot);
+  const history = await historySeeds(repository, identity.readerId, session.id);
+  const tutor = contextFromHistory(story.questions, snapshots, history);
   const group = attemptsFor(question.id, snapshots);
   const sameAttempt = group.find((attempt) => attempt.attemptNumber === input.attemptNumber);
   if (sameAttempt) {
@@ -130,7 +139,7 @@ export async function evaluateAttempt(sessionId: string, body: unknown) {
     if (previous) return toAnswerView(previous);
   }
 
-  const planned = nextAdaptiveQuestion(story.questions, snapshots);
+  const planned = nextAdaptiveQuestion(story.questions, snapshots, tutor);
   if (planned !== question.id) {
     throw new AppError(409, "question_not_ready", "Esa pregunta todavía no toca.");
   }
@@ -152,13 +161,15 @@ export async function evaluateAttempt(sessionId: string, body: unknown) {
     question.format === "open",
   );
 
+  const spoken = await tutorReply(identity.readerId, question, input.answer, final);
+
   const saved = await repository.insertAnswer(identity.readerId, {
     sessionId: session.id,
     questionId: question.id,
     answerText: input.answer,
     isCorrect: final.isCorrect,
-    feedback: final.feedback,
-    hint: final.hint,
+    feedback: spoken.feedback,
+    hint: spoken.hint,
     confidence: final.confidence,
     needsReview: final.needsReview,
     nextAction: final.nextAction,
@@ -185,27 +196,33 @@ export async function completeReading(sessionId: string) {
 
   const answers = await repository.listAnswers(session.id, identity.readerId);
   const snapshots = answers.map(toSnapshot);
-  const path = questionsOnPath(story.questions, snapshots);
+  const previous = await repository.listSessions(identity.readerId);
+  const readerAnswers = await repository.listAnswersForReader(identity.readerId);
+  const history = seedsFrom(previous, readerAnswers, session.id);
+  const tutor = contextFromHistory(story.questions, snapshots, history);
+  const path = questionsOnPath(story.questions, snapshots, tutor);
   const scored = scoreSession(path, snapshots);
   if (!scored.complete) {
     throw new AppError(409, "incomplete", "Todavía faltan preguntas por responder.");
   }
 
   const reader = await repository.ensureReader(identity.readerId);
-  const previous = await repository.listSessions(identity.readerId);
   const completedStoryIds = previous
     .filter((item) => item.status === "completed")
     .map((item) => item.storyId);
+  const mastery = masteryFromSeeds([...history, ...sessionObservations(story.questions, snapshots)]);
   const recommendation = recommendForSession({
     results: resultsByType(
       story.questions.filter((question) => path.includes(question.id)),
       snapshots,
     ),
-    stories: listStories().map((item) => ({ id: item.id, level: item.level, title: item.title })),
+    stories: storyCatalog(),
     preferredLevel: reader.preferredLevel,
     activityLevel: session.readingLevel,
     completedStoryIds: [...completedStoryIds, story.id],
+    focusSkill: focusSkill(mastery),
   });
+  const supportNote = joinNotes(recommendation.supportNote, levelSuggestion(mastery));
 
   const saved = await repository.completeSession(session.id, identity.readerId, {
     score: scored.result.score,
@@ -215,7 +232,7 @@ export async function completeReading(sessionId: string) {
     pendingReview: scored.result.pendingReview,
     strengths: recommendation.strengths,
     recommendation: recommendation.recommendation,
-    supportNote: recommendation.supportNote,
+    supportNote,
     nextStoryId: recommendation.nextStoryId,
   });
 
@@ -266,11 +283,13 @@ export async function getProgress(): Promise<ProgressView> {
     };
   });
 
+  const mastery = masteryFromSeeds(seedsFrom(completed, answers));
   const advice = recommendFromHistory({
     sessions: history,
-    stories: cards.map((story) => ({ id: story.id, level: story.level, title: story.title })),
+    stories: storyCatalog(),
     preferredLevel: reader.preferredLevel,
     completedStoryIds: completed.map((session) => session.storyId),
+    focusSkill: focusSkill(mastery),
   });
 
   const storyStates: StoryState[] = [];
@@ -292,9 +311,11 @@ export async function getProgress(): Promise<ProgressView> {
     storyStates,
     pending: progressSessions.find((session) => session.status === "in_progress") ?? null,
     recommendation: advice?.recommendation ?? null,
-    supportNote: advice?.supportNote ?? null,
+    supportNote: joinNotes(advice?.supportNote ?? null, levelSuggestion(mastery)),
     nextStory: advice?.nextStoryId ? getStoryCard(advice.nextStoryId) : null,
     geminiConfigured: identity.geminiConfigured,
+    mastery,
+    levelNote: levelSuggestion(mastery),
     ...skillProfileFor(completed, answers),
   };
 }
@@ -434,6 +455,64 @@ async function openEvaluation(
     hint: model.hint,
     nextAction: model.next_action,
   } satisfies RawEvaluation;
+}
+
+async function historySeeds(
+  repository: {
+    listSessions(readerId: string): Promise<ReadingSession[]>;
+    listAnswersForReader(readerId: string): Promise<ReadingAnswer[]>;
+  },
+  readerId: string,
+  excludeSessionId: string,
+) {
+  const sessions = await repository.listSessions(readerId);
+  const answers = await repository.listAnswersForReader(readerId);
+  return seedsFrom(sessions, answers, excludeSessionId);
+}
+
+function seedsFrom(sessions: Array<{ id: string; storyId: string; status: string }>, answers: ReadingAnswer[], excludeSessionId?: string) {
+  return sessions.flatMap((session) => {
+    if (session.status !== "completed" || session.id === excludeSessionId) return [];
+    const story = getStory(session.storyId);
+    if (!story) return [];
+    const attempts = answers.filter((answer) => answer.sessionId === session.id).map(toSnapshot);
+    return sessionObservations(story.questions, attempts);
+  });
+}
+
+function storyCatalog() {
+  return listStories().map((story) => ({
+    id: story.id,
+    level: story.level,
+    title: story.title,
+    skills: [...new Set(story.questions.filter((question) => question.role === "core").map((question) => question.skill))],
+  }));
+}
+
+function joinNotes(base: string | null, extra: string | null) {
+  return [base, extra].filter((item): item is string => Boolean(item)).join(" ");
+}
+
+async function tutorReply(
+  readerId: string,
+  question: StoryQuestion,
+  answer: string,
+  final: RawEvaluation,
+) {
+  if (final.isCorrect) return { feedback: final.feedback, hint: final.hint };
+  const said = question.choices?.find((choice) => choice.id === answer)?.label ?? answer;
+  const reading = readMisunderstanding(question.skill, [said]);
+  const feedback = reading.kind === "unclear" && question.format === "choice" ? final.feedback : reading.verdict;
+  const place = final.hint ?? question.hint;
+  const fallback = localRebound(said, place) ?? place;
+  const correctLabel = question.choices?.find((choice) => choice.id === question.correctChoiceId)?.label;
+  const rebound = await requestSocraticQuestion({
+    readerId,
+    childWords: said,
+    placeHint: place,
+    forbidden: [question.explanation, correctLabel ?? ""].filter((item) => item.length >= 8),
+  });
+  return { feedback, hint: rebound ?? fallback };
 }
 
 function toSnapshot(answer: ReadingAnswer): AttemptSnapshot {
