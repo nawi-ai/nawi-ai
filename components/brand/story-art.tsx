@@ -33,6 +33,7 @@ export function StoryArt({
         sizes={sizes}
         quality={75}
         priority={priority}
+        unoptimized
         className="story-art__image"
       />
     </span>

@@ -169,6 +169,7 @@ body:has(.magic-reader-page) > main {
   min-height: 0;
   overflow: hidden;
   color: #30293a;
+  animation: magic-reader-content-arrive .42s ease-out both;
 }
 
 .magic-reader-book__page--art {
@@ -366,37 +367,58 @@ body:has(.magic-reader-page) > main {
   animation: magic-reader-turn-prev .58s cubic-bezier(.42, 0, .18, 1) forwards;
 }
 
-.magic-reader-book__turn-paper {
+.magic-reader-book__turn-face {
   position: absolute;
   inset: 0;
   overflow: hidden;
   border: 1px solid rgb(139 105 65 / 23%);
-  display: grid;
-  place-items: center;
   background:
     linear-gradient(90deg, rgb(101 70 42 / 18%), transparent 8% 84%, rgb(255 255 255 / 58%)),
     radial-gradient(circle at 44% 35%, rgb(255 221 133 / 24%), transparent 30%),
     #fff9ed;
   box-shadow: inset 0 0 42px rgb(121 84 47 / 12%), 0 0 35px rgb(30 15 43 / 18%);
-  backface-visibility: visible;
-  -webkit-backface-visibility: visible;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transform: translateZ(1px);
 }
 
-.magic-reader-book__turn-paper::after {
+.magic-reader-book__turn-face--back {
+  transform: rotateY(180deg) translateZ(1px);
+}
+
+.magic-reader-book__turn-face > .magic-reader-book__page {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  animation: none;
+}
+
+.magic-reader-book__turn-face::after {
   position: absolute;
   inset: 0;
   content: "";
+  pointer-events: none;
   background: linear-gradient(112deg, transparent 28%, rgb(255 255 255 / 72%) 49%, transparent 67%);
   transform: translateX(-85%);
   animation: magic-reader-page-sheen .58s ease-out forwards;
 }
 
-.magic-reader-book__turn-paper i {
-  color: rgb(180 126 54 / 28%);
-  font-size: 34px;
-  font-style: normal;
-  text-shadow: 0 0 18px rgb(246 189 85 / 28%);
+.magic-reader-book__loading {
+  position: absolute;
+  z-index: 14;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgb(246 189 85 / 42%);
+  border-radius: 50%;
+  color: #f6bd55;
+  background: rgb(34 21 62 / 82%);
+  box-shadow: 0 0 30px rgb(150 87 224 / 28%);
+  transform: translate(-50%, -50%);
+  animation: magic-reader-loading 1s ease-in-out infinite;
 }
 
 .magic-reader-tools {
@@ -576,6 +598,15 @@ body:has(.magic-reader-page) > main {
 }
 
 @keyframes magic-reader-page-sheen { to { transform: translateX(85%); } }
+
+@keyframes magic-reader-content-arrive {
+  from { opacity: .72; filter: saturate(.86); }
+  to { opacity: 1; filter: saturate(1); }
+}
+
+@keyframes magic-reader-loading {
+  50% { box-shadow: 0 0 48px rgb(246 189 85 / 45%); transform: translate(-50%, -50%) scale(1.12) rotate(90deg); }
+}
 
 @keyframes magic-reader-spark {
   50% { opacity: .55; transform: scale(.75) rotate(90deg); }
