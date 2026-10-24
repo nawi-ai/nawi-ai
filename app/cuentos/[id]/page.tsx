@@ -74,50 +74,54 @@ async function StoryDetail({ params }: { params: Promise<{ id: string }> }) {
         </section>
 
         <section className="magic-story-preview__details">
-          <p className="magic-story-preview__eyebrow">✦ Un libro te ha elegido</p>
-          <h1>{card.title}</h1>
-          <p className="magic-story-preview__summary">{card.summary}</p>
-
-          <div className="magic-story-facts" aria-label="Datos de la lectura">
-            <div><strong>{card.minutes}</strong><span>minutos</span></div>
-            <div><strong>{story.pageStarts.length}</strong><span>páginas</span></div>
-            <div><strong>{card.skills.length}</strong><span>descubrimientos</span></div>
+          <div className="magic-story-preview__thread" aria-hidden="true">
+            <span /><span /><span />
           </div>
 
-          <div className="magic-story-skills">
-            <p>En esta aventura descubrirás</p>
+          <div className="magic-story-preview__heading">
+            <p className="magic-story-preview__eyebrow">✦ Esta historia te está llamando</p>
+            <h1>{card.title}</h1>
+            <p className="magic-story-preview__summary">{card.summary}</p>
+          </div>
+
+          <ul className="magic-story-runes" aria-label="Cómo será esta aventura">
+            <li><span aria-hidden="true">◷</span><strong>{card.minutes} min</strong><small>de aventura</small></li>
+            <li><span aria-hidden="true">⌁</span><strong>{story.pageStarts.length} escenas</strong><small>por descubrir</small></li>
+            <li><span aria-hidden="true">✦</span><strong>Con Ñawi</strong><small>a tu lado</small></li>
+          </ul>
+
+          <div className="magic-story-trail">
+            <p>Sigue las luces y descubrirás…</p>
             <ul>
-              {card.skills.map((skill, index) => (
-                <li key={skill}><span>{index + 1}</span>{skill}</li>
+              {card.skills.map((skill) => (
+                <li key={skill}><span aria-hidden="true">✦</span>{skill}</li>
               ))}
             </ul>
           </div>
 
-          <div className="magic-story-guide">
-            <span aria-hidden="true">✦</span>
-            <p>
-              Ñawi te acompañará con pistas y preguntas para pensar. Puedes responder escribiendo o usando tu voz.
-            </p>
-          </div>
+          <p className="magic-story-whisper">
+            <span aria-hidden="true">☾</span>
+            Si una pista se esconde, Ñawi te ayudará a encontrarla con preguntas y con su voz.
+          </p>
 
           <div className="magic-story-preview__actions">
-          {identity.kind === "reader" &&
-          identity.preferredLevel !== null &&
-          identity.preferredLevel !== story.level ? (
-            <div className="magic-story-level-warning">
-              <p>
-                Este cuento es de {level?.name}. Tu biblioteca muestra los de{" "}
-                {LEVELS.find((item) => item.id === identity.preferredLevel)?.name}.
-              </p>
-            </div>
-          ) : (
-            <StartReading
-              storyId={story.id}
-              level={identity.kind === "reader" ? identity.preferredLevel : null}
-            />
-          )}
+            {identity.kind === "reader" &&
+            identity.preferredLevel !== null &&
+            identity.preferredLevel !== story.level ? (
+              <div className="magic-story-level-warning">
+                <p>
+                  Este cuento es de {level?.name}. Tu biblioteca muestra los de{" "}
+                  {LEVELS.find((item) => item.id === identity.preferredLevel)?.name}.
+                </p>
+              </div>
+            ) : (
+              <StartReading
+                storyId={story.id}
+                level={identity.kind === "reader" ? identity.preferredLevel : null}
+              />
+            )}
           </div>
-          <p className="magic-story-preview__footnote">Cuando estés listo, la portada se abrirá y comenzará la historia.</p>
+          <p className="magic-story-preview__footnote">Cruza el umbral y deja que el libro se abra.</p>
         </section>
       </article>
     </div>
